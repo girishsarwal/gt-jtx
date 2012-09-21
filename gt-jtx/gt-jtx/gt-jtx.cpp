@@ -1,69 +1,64 @@
 /*
- * gt_jtx.cpp
+ * HelloChip.c
  *
- * Created: 13-09-2012 18:09:41
+ * Created: 20-09-2012 15:08:33
  *  Author: girish
  */ 
+#ifndef F_CPU
+#define F_CPU 1000000UL
+#endif
 
 #include <avr/io.h>
+#include <math.h>
+#include <util/delay.h>
 #include <avr/interrupt.h>
-#define F_CPU 16000000	//16 Mhz
 
-#define PPMOUT 2
-
-int main(void)
-{
+int main(){
+	DDRC = 0x01;
+	PORTC = 0x00;
+	TCNT1 = 0;
 	
-	/* set PORTA pin 1 to out **/
-	DDRB = 0b00000001;
-	
-	/** setup outer timer 
-	*	counts per 10 ms to give a timebase for frame generation
-	*/
-	
-	TCNT0 = 0;								/** Reset the timer counter **/
-	TCCR0 |= (1<<CS02) || (1 << CS00); 		/** F_CPU/1024 **/
-	OCR0 = 156;								/** 156 * 0.00064s = 10 ms **/
-	
-	
-	TCNT1 = 0;								/** Reset the timer counter **/
-	TCCR1A |=0;
-	TCCR1B |= (1<<WGM12);					/** mode 4 - CTC **/
-	TCCR1B |= (1<<CS11);					/** F_CPU/8**/
-	OCR1A = 2000;							/** 2000 * 0.0000005s = 1 ms **/
-	
+	TCCR1B |= (1<<CS10) ;				/** F_CPU - 1Mhz Timebase**/
+	TCCR1B	|=	(1<<WGM12);				/** Mode 4 **/
+	OCR1A = 22000;						/** 1/(1000000 ) * 22000= 22 ms **/
 	
 	sei();
-	
-	TIMSK |= (1<<OCIE0);					/** Enable Interrupt in mask so our 'outer' timer begins**/
-
-    while(1)
-    {
-        PORTB = 0x00;
-		/** updates to user interface etc from data values**/
-    }
-};
-
-
-
-
-ISR(TIMER0_COMP_vect)
-{
-
-	cli();
-	TIMSK &= ~(1<<OCIE0);	/** stop reentrance **/
-	TIMSK |= (1<<OCIE1A);	/** enable our 'inner' timer **/
-	TIMSK |= (1<<OCIE0);	/** enable back 'outer' timer **/
-	sei();
+	TIMSK |= (1<<OCIE1A);
+	while(1){
+		
+		
+	}
 }
 
+ISR(TIMER1_COMPA_vect){
+	/**Ailerons **/
+	PORTC = 0x00;
+	_delay_us(300);
+	PORTC= 0x01;
+	_delay_us(700);
+	
+	/**Elevator**/
+	PORTC = 0x00;
+	_delay_us(300);
+	PORTC= 0x01;
+	_delay_us(700);
+	
+	/** Throttle **/
+	PORTC = 0x00;
+	_delay_us(300);
+	PORTC= 0x01;
+	_delay_us(700);
+	
+	/** Rudder **/
+	PORTC = 0x00;
+	_delay_us(300);
+	PORTC= 0x01;
+	_delay_us(700);
+	
+	/**sync pulse **/
+	PORTC = 0x00;
+	_delay_us(1000);
+	PORTC = 0x01;
 
-ISR(TIMER1_COMPA_vect)
-{	
-	PORTB = 0x01;
-	cli();
-	TIMSK&= ~(1<<OCIE1A);	/** stop reentrancy **/
-	/** single instruction **/
-	TIMSK |= (1<<OCIE1A);	/** enable back 'inner' timer **/
-	sei();
+	TCNT1 = 0;
 }
