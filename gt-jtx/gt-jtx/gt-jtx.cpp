@@ -3,7 +3,7 @@
  *
  * Created: 20-09-2012 15:08:33
  *  Author: girish
- */ 
+ */
 #ifndef F_CPU
 #define F_CPU 1000000UL
 #endif
@@ -24,9 +24,13 @@ void applyEndPointTransforms();
 #define ELE	2
 #define THR	3
 #define RUD	4
-#define MAX_CHANNEL RUD
+#define FLAPS 5
+#define GEAR 6
+#define MIX 7
+#define AUX 8
+#define MAX_CHANNEL AUX
 
-uint16_t ppm[(MAX_CHANNEL + 1) * 2 ];
+uint16_t ppm[MAX_CHANNEL];
 
 
 int main(){
@@ -46,14 +50,17 @@ int main(){
 uint8_t i = 1;
 static int channel = SYNC;
 ISR(TIMER1_COMPA_vect){
-	PORTC ^= (1<<0);
-	//if(channel %2 == 0){
-		//PORTC = 0x00;
-	//}
-	OCR1A = ppm[channel++];
-	if(channel > MAX_CHANNEL * 2){
-		channel = SYNC;
+	TIMSK &= ~(1<<OCIE1A);
+	
+	if(channel >= MAX_CHANNEL){
+		channel = -1;
 	}
+	if((PORTC & 0x01) == 0x01)		//If port is high, we need to set OCR1A to the complementary delay
+		OCR1A = 2000 - ppm[channel];	
+	else
+		OCR1A = ppm[++channel];		//if port is low, we need to goto the next channel
+   PORTC ^= (1<<0);		/** todo: change to hardware pin **/
+	TIMSK |= (1<<OCIE1A);
 }
 
 void setup(){
@@ -68,19 +75,13 @@ void setup(){
 
 void reset(){
 	/** set values to match servo spec **/
-	ppm[0] = 1000;
-	ppm[1] = 2000 - ppm[0];
-	
-	ppm[2] = 1500;
-	ppm[3] = 2000 -ppm[2];
-	
-	ppm[4] = 1500;
-	ppm[5] = 2000- ppm[4];
-	
-	ppm[6] = 500;
-	ppm[7] = 2000 - ppm[6];
-	
-	ppm[8] = 500;
-	ppm[9] = 2000 - ppm[8];
-	
+	ppm[SYNC] = 1000;
+	ppm[AIL] = 1500;
+	ppm[ELE] = 1500;
+	ppm[THR] = 500;
+	ppm[RUD] = 500;
+	ppm[FLAPS] = 500;
+	ppm[GEAR] = 500;
+	ppm[MIX] = 500;
+	ppm[AUX] = 500;
 }
