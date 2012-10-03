@@ -23,21 +23,26 @@ uint16_t readAnalog(uint8_t);
 void applyTrimTransforms();
 void applyEndPointTransforms();
 
-#define SYNC 0
-#define AIL	1
-#define ELE	2
-#define THR	3
-#define RUD	4
-#define FLAPS 5
-#define GEAR 6
-#define MIX 7
-#define AUX 8
+#define SYNC 	0
+#define AIL		1
+#define ELE		2
+#define THR		3
+#define RUD		4
+#define FLAPS 	5
+#define GEAR 	6
+#define MIX 	7
+#define AUX 	8
 #define MAX_CHANNEL AUX
+
+#define ADC_LOWER 0
+#define ADC_UPPER 1024
 
 #define MIN_SIGNAL_WIDTH 200
 #define MAX_SIGNAL_WIDTH 2000
-#define SERVO_MIN_SIGNAL 500
+
+#define SERVO_MIN_SIGNAL 200
 #define SERVO_MAX_SIGNAL 1500
+
 #define SERVO_TRAVERSAL SERVO_MAX_SIGNAL - SERVO_MIN_SIGNAL
 
 
@@ -45,6 +50,8 @@ void applyEndPointTransforms();
 
 uint16_t ppm[MAX_CHANNEL];
 static int channel = SYNC;
+
+float adc_scaler = 0;
 
 int main(){
 	reset();
@@ -67,8 +74,7 @@ int main(){
 };
 
 uint16_t map(uint16_t value){
-	float scaleValue = value/1024.0f;
-	return (500 + scaleValue * 1000);
+	return SERVO_MIN_SIGNAL + (value * adc_scaler);
 }
 
 ISR(TIMER1_COMPA_vect){
@@ -87,6 +93,7 @@ ISR(TIMER1_COMPA_vect){
 };
 
 void setup(){
+	adc_scaler = ((float)SERVO_TRAVERSAL) /(ADC_UPPER - ADC_LOWER);
 	/** set output **/
 	DDRB = 0x02;						/** make PB1 as out pin **/
 	
@@ -107,7 +114,7 @@ void setup(){
 };
 uint16_t readAnalog(uint8_t ch){
 	ch = ch & 0x07;			/** zero out all bits except last three for limiting channel **/
-	ADMUX &=0b11100000;		/**reset channel selection **/
+	ADMUX &=0xE0;		/**reset channel selection **/
 	ADMUX |=ch;						/**select the requested channel **/
 	ADCSRA |= (1<<ADSC);
 	while(!(ADCSRA & (1<<ADIF)));
@@ -128,6 +135,7 @@ void reset(){
 	ppm[MIX] = 1000;
 	ppm[AUX] = 1000;
 };
+
 
 
 
