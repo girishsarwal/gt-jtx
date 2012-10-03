@@ -25,5 +25,13 @@
 ; Define here the hardware around the micro
 ; ------------------------------------------------------------
 
+;V1 PC0 VSS SLIDER_1(0 5)
+V1 PC1 VSS SLIDER_1(0 5)
+V2 PC2 VSS SLIDER_2(0 5)
+V3 PC3 VSS SLIDER_3(0 5)
+.PLOT v(PB1)
+.PLOT v(PC1)
+.PLOT v(PC2)
+.PLOT v(PC3)
 
 
