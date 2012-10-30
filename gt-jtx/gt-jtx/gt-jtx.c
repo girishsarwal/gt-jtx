@@ -14,7 +14,7 @@
 #include <math.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
-
+#include <lcd.h>
 
 void setup();
 uint16_t map(uint16_t);
@@ -32,7 +32,7 @@ void applyEndPointTransforms();
 #define GEAR 	6
 #define MIX 	7
 #define AUX 	8
-#define MAX_CHANNEL AUX
+#define MAX_CHANNEL AUX + 1
 
 #define ADC_LOWER 0
 #define ADC_UPPER 1024
@@ -49,6 +49,7 @@ void applyEndPointTransforms();
 #define STARTADC ADCSRA |= (1<<ADEN) | (1<<ADPS0) | (1<<ADPS1) | (1<<ADPS0) | (1<<ADIE);
 
 uint16_t ppm[MAX_CHANNEL];
+char szBuffer[10];
 static int channel = SYNC;
 
 float adc_scaler = 0;
@@ -70,22 +71,38 @@ int main(){
 		ppm[AIL] = map(readAnalog(AIL));
 		ppm[ELE] = map(readAnalog(ELE));
 		ppm[THR] = map(readAnalog(THR));
-		}
+		ppm[RUD] = map(readAnalog(RUD));		
+		lcd_clrscr();
+		lcd_home();
+		sprintf(szBuffer, "%d", ppm[AIL]);
+		lcd_puts(szBuffer);
+		lcd_gotoxy(6, 0);
+		itoa(ppm[ELE], szBuffer, 10);
+      lcd_puts(szBuffer);
+      lcd_gotoxy(0, 1);
+      sprintf(szBuffer, "%d", ppm[THR]);
+		lcd_puts(szBuffer);
+		lcd_gotoxy(6, 1);
+		itoa(ppm[RUD], szBuffer, 10);
+      lcd_puts(szBuffer);
+
+	}
 };
 
 uint16_t map(uint16_t value){
 	return SERVO_MIN_SIGNAL + (value * adc_scaler);
 }
 
+
+
 ISR(TIMER1_COMPA_vect){
 	TIMSK &= ~(1<<OCIE1A);
-	
-	if(channel >= MAX_CHANNEL){
-		channel = -1;
-	}
-	
-	if((PINB & 0x02) == 0x02)		//If the actual pin is high, we need to set OCR1A to the complementary delay
-		OCR1A = ppm[++channel];		
+	if((PINB & 0x02) == 0x02){		//If the actual pin is high, we need to set OCR1A to the complementary delay
+		if(channel >= MAX_CHANNEL - 1){
+			channel = -1;
+		}
+		OCR1A = ppm[++channel];
+		}		
 	else
 		OCR1A = MAX_SIGNAL_WIDTH - ppm[channel];	
 
@@ -94,8 +111,10 @@ ISR(TIMER1_COMPA_vect){
 
 void setup(){
 	adc_scaler = ((float)SERVO_TRAVERSAL) /(ADC_UPPER - ADC_LOWER);
+	/** init LCD Display **/
+	lcd_init(LCD_DISP_ON);
 	/** set output **/
-	DDRB = 0x02;						/** make PB1 as out pin **/
+	DDRB = 0xFF;						/** make PB1 as out pin **/
 	
 	PORTB = 0x02;						/** make PB1 as high **/
 	TCNT1 = 0;
@@ -135,6 +154,8 @@ void reset(){
 	ppm[MIX] = 1000;
 	ppm[AUX] = 1000;
 };
+
+
 
 
 
