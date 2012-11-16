@@ -7,7 +7,7 @@
  *
  */
 #ifndef F_CPU
-#define F_CPU 16000000UL
+#define F_CPU 1000000UL
 #endif
 
 #include <avr/io.h>
@@ -31,6 +31,8 @@ void applyEndPointTransforms();
 #define START_FROM_SYNC_CHANNEL_WIDTH
 //#define START_FROM_FIRST_CHANNEL_WIDTH
 //#define START_FROM_INTER_CHANNEL_WIDTH
+
+//#define USE_LCD_DISPLAY
 
 /** indexing in data array **/
 #define CHANNEL_1 1
@@ -57,15 +59,15 @@ void applyEndPointTransforms();
 #define AUX2	CHANNEL_9
 #define AUX3	CHANNEL_10
 
-#define MAX_CHANNEL AUX3
+#define MAX_CHANNEL AUX1
 
-#define MIN_SIGNAL_WIDTH 1000  	/** 1000 microsecond = 1 ms **/
-#define MID_SIGNAL_WIDTH 1500  	/** 1500 microsecond = 1.5 ms **/
-#define MAX_SIGNAL_WIDTH 2000		/** 2000 microsecond = 2 ms **/
+#define MIN_SIGNAL_WIDTH 700  	/** 700 microsecond = 0.7 ms **/
+#define MID_SIGNAL_WIDTH 1200  	/** 1200 microsecond = 1.2 ms **/
+#define MAX_SIGNAL_WIDTH 1700		/** 1700 microsecond = 1.7 ms **/
 #define INIT_SIGNAL_WIDTH MID_SIGNAL_WIDTH
-#define INTER_CHANNEL_WIDTH 200 	/**200 microsecond **/
+#define INTER_CHANNEL_WIDTH 300 	/**300 microsecond **/
 #define SIGNAL_TRAVERSAL MAX_SIGNAL_WIDTH - MIN_SIGNAL_WIDTH
-#define FRAME_WIDTH	20000			/**20000 microsecond = 20 ms **/
+#define FRAME_WIDTH	22500			/**22500 microsecond = 22.5 ms **/
 #define SYNC_SIGNAL_WIDTH (FRAME_WIDTH - (MAX_CHANNEL * (MID_SIGNAL_WIDTH + INTER_CHANNEL_WIDTH))) /**whatever is left **/
 
 #define ADC_LOWER 0
@@ -93,10 +95,13 @@ int main(){
 	ADCSRA |= (1<<ADSC);
 	while(1){
 		/**read inputs **/
+
 		ppm[AIL] = map(readAnalog(AIL));
 		ppm[ELE] = map(readAnalog(ELE));
 		ppm[THR] = map(readAnalog(THR));
 		ppm[RUD] = map(readAnalog(RUD));		
+
+#ifdef USE_LCD_DISPLAY
 		lcd_clrscr();
 		lcd_home();
 		sprintf(szBuffer, "A:%d E:%d", mapPercent(ppm[AIL]), mapPercent(ppm[ELE]));
@@ -105,6 +110,7 @@ int main(){
 		lcd_gotoxy(0,1);
 		sprintf(szBuffer, "T:%d R:%d",  mapPercent(ppm[THR]),  mapPercent(ppm[RUD]));
       lcd_puts(szBuffer);
+#endif
 
 	}
 };
@@ -142,9 +148,11 @@ ISR(TIMER1_COMPA_vect){
 
 void setup(){
 	adc_scaler = ((float)SIGNAL_TRAVERSAL) /(ADC_UPPER - ADC_LOWER);
+#ifdef USE_LCD_DISPLAY
 	/** init LCD Display **/
 	lcd_init(LCD_DISP_ON);
 	/** set output **/
+#endif	
 	DDRB = 0xFF;						/** make PB1 as out pin **/
 	
 	PORTB = 0x20;						/** make PB1 as low **/
@@ -199,6 +207,9 @@ void reset(){
 #endif
 	
 };
+
+
+
 
 
 

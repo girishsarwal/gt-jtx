@@ -18,22 +18,31 @@
 ; exactly these values are taken by default
 ; ------------------------------------------------------------
 .POWER VDD=5 VSS=0  ; Power nodes
-.CLOCK 16meg         ; Micro clock
+.CLOCK 1meg         ; Micro clock
 .STORE 250m         ; Trace (micro+signals) storage time
 
 ; Micro nodes: RESET, AREF, PB0-PB7, PC0-PC6, PD0-PD7, ACO, TIM1OVF, ADC6, ADC7
 ; Define here the hardware around the micro
 ; ------------------------------------------------------------
 
+;PORT C is input
 ;V1 PC0 VSS SLIDER_1(0 5)
 V1 PC1 VSS SLIDER_1(0 5)
 V2 PC2 VSS SLIDER_2(0 5)
 V3 PC3 VSS SLIDER_3(0 5)
+
+;PORT B is Output (PPM + LCD)
+.PLOT v(PB0)
 .PLOT v(PB1)
 .PLOT v(PC1)
 .PLOT v(PC2)
 .PLOT v(PC3)
+
+;X[inst_name]  LCD(chars lines oscil_freq) RS RW E D7 D6 D5 D4 D3 D2 D1 D0
 X1  LCD(16 2 250K) PB6 PB7 PB0 PB5 PB4 PB3 PB2 nc1 nc2 nc3 nc4
+
+
+
 
 
 
