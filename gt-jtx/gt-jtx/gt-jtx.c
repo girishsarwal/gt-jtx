@@ -32,7 +32,7 @@ void applyEndPointTransforms();
 //#define START_FROM_FIRST_CHANNEL_WIDTH
 //#define START_FROM_INTER_CHANNEL_WIDTH
 
-//#define USE_LCD_DISPLAY
+#define USE_LCD_DISPLAY
 
 /** indexing in data array **/
 #define CHANNEL_1 1
@@ -61,9 +61,9 @@ void applyEndPointTransforms();
 
 #define MAX_CHANNEL AUX1
 
-#define MIN_SIGNAL_WIDTH 700  	/** 700 microsecond = 0.7 ms **/
-#define MID_SIGNAL_WIDTH 1200  	/** 1200 microsecond = 1.2 ms **/
-#define MAX_SIGNAL_WIDTH 1700		/** 1700 microsecond = 1.7 ms **/
+#define MIN_SIGNAL_WIDTH 500  	/** 700 microsecond = 0.7 ms **/
+#define MID_SIGNAL_WIDTH 1500  	/** 1200 microsecond = 1.2 ms **/
+#define MAX_SIGNAL_WIDTH 2000		/** 1700 microsecond = 1.7 ms **/
 #define INIT_SIGNAL_WIDTH MID_SIGNAL_WIDTH
 #define INTER_CHANNEL_WIDTH 300 	/**300 microsecond **/
 #define SIGNAL_TRAVERSAL MAX_SIGNAL_WIDTH - MIN_SIGNAL_WIDTH
@@ -207,6 +207,8 @@ void reset(){
 #endif
 	
 };
+
+
 
 
 
