@@ -25,10 +25,7 @@
 #include <inttypes.h>
 #include <avr/io.h>
 #include <avr/pgmspace.h>
-#include <lcd.h>
-
-
-
+#include "lcd.h"
 /*
 ** constants/macros
 */

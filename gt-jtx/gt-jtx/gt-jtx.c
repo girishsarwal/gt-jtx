@@ -14,7 +14,7 @@
 #include <math.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
-#include <lcd.h>
+#include "lcd.h"
 
 void reset();
 void setup();
