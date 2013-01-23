@@ -11,6 +11,7 @@
 #endif
 
 #include <avr/io.h>
+#include <avr/eeprom.h>
 #include <math.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
@@ -27,9 +28,14 @@ uint16_t micros_to_ticks(uint16_t);
 
 void applyTrimTransforms();
 void applyEndPointTransforms();
-uint8_t getKeyPressed(uint8_t key);
-void processDigitalInputs();
+uint8_t getKeyPressed(uint8_t port, uint8_t key);
+void incTrim(uint8_t trimkey, uint8_t channel);
+void incTrim(uint8_t trimkey, uint8_t channel);
+void processKeyInputs();
 void processDisplay();
+void loadParameters();
+void loadGlobalSettings();
+void saveGlobalSettings();
 
 #define START_FROM_SYNC_CHANNEL_WIDTH
 //#define START_FROM_FIRST_CHANNEL_WIDTH
@@ -62,6 +68,15 @@ void processDisplay();
 
 #define MAX_CHANNEL AUX1
 
+/** Screens -
+0 - home screen,
+1 - AUX1 - channel settings
+MAX_CHANNEL + 1 - Global Settings
+MAX_CHANNEL + 2 - Calibration
+**/
+#define SETTINGS    MAX_CHANNEL + 1
+#define CALIBRATION MAX_CHANNEL + 2
+
 #define TRIM_AIL_PLUS 0x01
 #define TRIM_AIL_MINUS 0x02
 #define TRIM_ELE_PLUS 0x04
@@ -74,17 +89,29 @@ void processDisplay();
 #define TRIM_COMBO_MENU (TRIM_AIL_PLUS | TRIM_AIL_MINUS | TRIM_ELE_PLUS | TRIM_ELE_MINUS)
 #define HOME	SYNC
 
-#define MIN_SIGNAL_WIDTH 700  	/**800 microsecond = 0.8 ms **/
-#define MID_SIGNAL_WIDTH 1300  	/** 1300 microsecond = 1.3 ms **/
-#define MAX_SIGNAL_WIDTH 1700		/** 1800 microsecond = 1.8 ms **/
+uint16_t EEMEM _eepromOk = 29543;				/**DO NOT CHANGE THIS **/   	
+uint16_t EEMEM _minSignalWidth = 700;
+uint16_t EEMEM _maxSignalWidth = 1700;
+uint16_t EEMEM _interChannelWidth = 300;
+uint16_t EEMEM _frameWidth = 22500;
+
+uint16_t EEPROM_OK;
+uint16_t MAX_SIGNAL_WIDTH;
+uint16_t MIN_SIGNAL_WIDTH;
+uint16_t INTER_CHANNEL_WIDTH;
+uint16_t FRAME_WIDTH;
+
+
+uint16_t MID_SIGNAL_WIDTH;
+uint16_t SYNC_SIGNAL_WIDTH;
+
+float ADC_SCALER = 0;
+
 #define TRIM_UPPER_END 200
 #define TRIM_LOWER_END 0
 #define TRIM_CENTER 100
-#define INIT_SIGNAL_WIDTH MID_SIGNAL_WIDTH
-#define INTER_CHANNEL_WIDTH 300 	/**300 microsecond **/
+
 #define SIGNAL_TRAVERSAL MAX_SIGNAL_WIDTH - MIN_SIGNAL_WIDTH
-#define FRAME_WIDTH	22500			/**22500 microsecond = 22.5 ms **/
-#define SYNC_SIGNAL_WIDTH (FRAME_WIDTH - (MAX_CHANNEL * (MID_SIGNAL_WIDTH + INTER_CHANNEL_WIDTH))) /**whatever is left **/
 
 #define ADC_LOWER 0
 #define ADC_UPPER 1023
@@ -97,14 +124,23 @@ int8_t percent[MAX_CHANNEL + 1];
 
 char szBuffer[16];
 static int channel = SYNC;
-float adc_scaler = 0;
-
 
 int main(){
-	reset();
-	
+
 	setup();
-	
+
+	if(EEPROM_OK != 29543)
+	{
+		while(1)
+		{
+			lcd_puts("EEPROM MISSING!");
+			lcd_gotoxy(0, 1);
+			lcd_puts("Load Def. EEPROM");
+		}
+      return;
+	}
+	reset();
+
 	/**Enable global interrupts **/
 	sei();
 
@@ -129,23 +165,59 @@ int main(){
 		percent[FLAPS] = mapPercent(ppm[FLAPS], trims[FLAPS]);
 		percent[GEAR] = mapPercent(ppm[GEAR], trims[GEAR]);
 
-		processDigitalInputs();
+		processKeyInputs();
 		processDisplay();
 	}
 };
 
-void processDigitalInputs()
+
+
+uint8_t getKeyPressed(uint8_t port, uint8_t key)
 {
-		if((~PIND & TRIM_COMBO_MENU) == TRIM_COMBO_MENU)				
+	if(((~port) & key) == key)	
+	{
+		_delay_ms(1);	/** get rid of keybounce **/
+		return (((~port) & key) == key);
+	}	
+	return 0x00;
+}
+void incTrim(uint8_t trimkey, uint8_t channel)
+{
+	if(getKeyPressed(PIND, trimkey))
+	{
+		if(++trims[channel] > TRIM_UPPER_END)
+			trims[channel] = TRIM_UPPER_END;
+	}
+}
+void decTrim(uint8_t trimkey, uint8_t channel)
+{
+	if(getKeyPressed(PIND, trimkey))
+	{
+		if(trims[channel] > 0 && --trims[channel] <= TRIM_LOWER_END)
+			trims[channel] = TRIM_LOWER_END;
+	}	
+}
+void processKeyInputs()
+{
+	if(getKeyPressed(PINC, 0x01))
+	{
+		if(HOME != trims[SYNC])
 		{
-			if(trims[SYNC] == 0)
-				trims[SYNC]++;		/** just enter the first screen **/
-			else
-				trims[SYNC] = 0;
+			switch(trims[SYNC])
+			{
+				case SETTINGS:
+					saveGlobalSettings();
+					break;
+				case CALIBRATION:
+					//	saveCalibration()'
+					break;
+			}
+			trims[SYNC] = HOME;
+			return;
 		}
-		
-		/** inputs are based on the screen we're on **/
-		switch(trims[SYNC])
+		trims[SYNC]++;
+	}
+	switch(trims[SYNC])
 		{
 		case HOME:
 			incTrim(TRIM_AIL_PLUS, AIL);
@@ -158,61 +230,24 @@ void processDigitalInputs()
 			decTrim(TRIM_RUD_MINUS, RUD);
 			return;
 		case AIL:
-			break;
 		case ELE:
-			break;
 		case THR:
-			break;		
 		case RUD:
-			break;		
 		case FLAPS:
-			break;		
 		case GEAR:
-			break;		
 		case MIX:
-			break;
 		case AUX1:
-			break;
-		default:
-			trims[SYNC] = AIL;	/**Reset to first setting screen if we dont know where we are **/
+		case SETTINGS:
+		case CALIBRATION:
+			if(getKeyPressed(PIND, TRIM_AIL_PLUS))
+				trims[SYNC]--;
+			if(getKeyPressed(PIND, TRIM_AIL_MINUS))
+				trims[SYNC]++;
+			break;		
+     	default:
+			trims[SYNC] = AIL;	/**Reset to home screen, if we don't know where we are **/
 			return;
 		}
-		if(getKeyPressed(TRIM_AIL_PLUS)
-			&& trims[SYNC] < MAX_CHANNEL)		
-		{
-			trims[SYNC]++;
-		}
-		if(getKeyPressed(TRIM_AIL_MINUS)
-			&& trims[SYNC] > CHANNEL_1)		
-		{
-			trims[SYNC]--;
-		}
-}
-
-uint8_t getKeyPressed(uint8_t key)
-{
-	if(((~PIND) & key) == key)	
-	{
-		_delay_ms(1);	/** get rid of keybounce **/
-		return (((~PIND) & key) == key);
-	}	
-	return 0x00;
-}
-void incTrim(uint8_t trimkey, uint8_t channel)
-{
-	if(getKeyPressed(trimkey))
-	{
-		if(++trims[channel] > TRIM_UPPER_END)
-			trims[channel] = TRIM_UPPER_END;
-	}
-}
-void decTrim(uint8_t trimkey, uint8_t channel)
-{
-	if(getKeyPressed(trimkey))
-	{
-		if(trims[channel] > 0 && --trims[channel] <= TRIM_LOWER_END)
-			trims[channel] = TRIM_LOWER_END;
-	}	
 }
 void processDisplay()
 {
@@ -229,36 +264,46 @@ void processDisplay()
 				lcd_puts(szBuffer);
 				return;
 			case AIL:
-				sprintf(szBuffer, "AIL  Tr    ms");
+				sprintf(szBuffer, "AIL    Tr  ms");
 				break;
 			case ELE:
-				sprintf(szBuffer, "ELE  Tr    ms");				
+				sprintf(szBuffer, "ELE    Tr  ms");				
 				break;
 			case THR:
-				sprintf(szBuffer, "THR 	Tr    ms");				
+				sprintf(szBuffer, "THR 	  Tr  ms");				
 				break;		
 			case RUD:
-				sprintf(szBuffer, "RUD  Tr    ms");				
+				sprintf(szBuffer, "RUD    Tr  ms");				
 				break;		
 			case FLAPS:
-				sprintf(szBuffer, "FLAPS  Tr    ms");				
+				sprintf(szBuffer, "FLAPS  Tr  ms");				
 				break;		
 			case GEAR:
-				sprintf(szBuffer, "GEAR  Tr    ms");				
+				sprintf(szBuffer, "GEAR   Tr  ms");				
 				break;		
 			case MIX:
-				sprintf(szBuffer, "MIX  Tr    ms");				
+				sprintf(szBuffer, "MIX    Tr  ms");				
 				break;		
 			case AUX1:
-				sprintf(szBuffer, "AUX1  Tr    ms");				
+				sprintf(szBuffer, "AUX1   Tr  ms");				
 				break;		
+			case SETTINGS:
+				lcd_puts("Settings");
+				lcd_gotoxy(0, 1);
+				lcd_puts("  Menu to save  ");
+				return;
+			case CALIBRATION:
+				lcd_puts("MOVE AETR MINMAX");
+				lcd_gotoxy(0, 1);
+				lcd_puts("  Menu to save  ");
+				return;
       	default:
-				trims[SYNC] = 0;	/**Reset to home screen, if we don't know where we are **/
+				trims[SYNC] = AIL;	/**Reset to home screen, if we don't know where we are **/
 				return;
 			}
 			lcd_puts(szBuffer);
 			lcd_gotoxy(0,1);
-			sprintf(szBuffer, "%d %d %d", percent[trims[SYNC]], trims[trims[SYNC]], ppm[trims[SYNC]]);
+			sprintf(szBuffer, "%d   %d  %d", percent[trims[SYNC]], trims[trims[SYNC]], ppm[trims[SYNC]]);
 			lcd_puts(szBuffer);
 		#endif
 }
@@ -273,7 +318,7 @@ int16_t mapPercent(uint16_t value, uint8_t trim){
 };
 
 uint16_t map(uint16_t value){
-	return MIN_SIGNAL_WIDTH + (value * adc_scaler);
+	return MIN_SIGNAL_WIDTH + (value * ADC_SCALER);
 };
 
 uint16_t ms_to_ticks(uint16_t value){
@@ -296,15 +341,58 @@ ISR(TIMER1_COMPA_vect){
 	TIMSK |= (1<<OCIE1A);
 };
 
+void loadGlobalSettings()
+{
+	EEPROM_OK = eeprom_read_word(&_eepromOk);
+	MIN_SIGNAL_WIDTH = eeprom_read_word(&_minSignalWidth);
+   MAX_SIGNAL_WIDTH = eeprom_read_word(&_maxSignalWidth);
+   INTER_CHANNEL_WIDTH = eeprom_read_word(&_interChannelWidth);
+   FRAME_WIDTH = eeprom_read_word(&_frameWidth);
+}
+void loadParameters()
+{
+	MID_SIGNAL_WIDTH = ((MAX_SIGNAL_WIDTH + MIN_SIGNAL_WIDTH)/2) + TRIM_CENTER;
+	SYNC_SIGNAL_WIDTH = (FRAME_WIDTH - (MAX_CHANNEL * (MID_SIGNAL_WIDTH + INTER_CHANNEL_WIDTH))); /**whatever is left **/
+	ADC_SCALER = ((float)SIGNAL_TRAVERSAL) /(ADC_UPPER - ADC_LOWER);
+}
+void saveGlobalSettings()
+{
+	eeprom_write_word(&_minSignalWidth, MIN_SIGNAL_WIDTH);
+   eeprom_write_word(&_maxSignalWidth, MAX_SIGNAL_WIDTH);
+   eeprom_write_word(&_interChannelWidth, INTER_CHANNEL_WIDTH);
+   eeprom_write_word(&_frameWidth, FRAME_WIDTH);
+}
+
 void setup(){
-	adc_scaler = ((float)SIGNAL_TRAVERSAL) /(ADC_UPPER - ADC_LOWER);
+	/** read up stuff from eeprom **/
+	loadGlobalSettings();
+	loadParameters();
+
 #ifdef USE_LCD_DISPLAY
 	/** init LCD Display **/
 	lcd_init(LCD_DISP_ON);
 	/** set output **/
 #endif	
+	/** set inputs **/				
+	DDRC = 0x00;						/** PORTC in the input for ADC control on ATmega8**/
+											/** PC0 = Menu key
+											 ** PC1 = AIL Input
+											 ** PC2 = ELE Input
+											 ** PC3 = THR Input
+											 ** PC4 = RUD Input
+											 ** PC5 = FLAP Input **/
+ 	PORTC = 0x01;           		/** Activate Pull Up resistor on MENU KEY ONLY 0b00000001 **/
+
 	DDRD = 0x00;						/** Port D has the trim switches, make them digital input **/
-	PORTD = 0xFF;
+											/** PD0 = AIL+
+											 ** PD1 = AIL-
+											 ** PD2 = ELE+
+											 ** PD3 = ELE-
+											 ** PD4 = THR+
+											 ** PD5 = THR-
+											 ** PD6 = RUD+
+											 ** PD7 = RUD- **/
+	PORTD = 0xFF; 						/** Activate all pull up resistors on port D 0b11111111 */
 
 	DDRB = 0xFF;						/** make PB1 as out pin **/
 	PORTB = 0x20;						/** make PB1 as low **/
@@ -315,8 +403,6 @@ void setup(){
 
 	TCCR1A |= (1<<COM1A0);				/** hardware ctc **/
 	
-	/** set inputs **/					/** PORTC in the input for ADC control on ATmega8**/
-	PORTC = 0x00;
 	ADMUX |= (1<<REFS0);				
 	ADCSRA |= (1<<ADEN); 					/** enable the ADC **/
 	ADCSRA|= (1<<ADPS2) | (1<<ADPS1) | (1<<ADPS0);	/**F_CPU/64 Prescalar **/
@@ -334,18 +420,19 @@ uint16_t readAnalog(uint8_t ch){
 void reset(){
 	/** set values to match servo spec **/
 	ppm[SYNC] = SYNC_SIGNAL_WIDTH;
-	ppm[AIL] = INIT_SIGNAL_WIDTH;
-	ppm[ELE] = INIT_SIGNAL_WIDTH;
-	ppm[THR] = INIT_SIGNAL_WIDTH;
-	ppm[RUD] = INIT_SIGNAL_WIDTH;
-	ppm[FLAPS] = INIT_SIGNAL_WIDTH;
-	ppm[GEAR] = INIT_SIGNAL_WIDTH;
-	ppm[MIX] = INIT_SIGNAL_WIDTH;
-	ppm[AUX1] = INIT_SIGNAL_WIDTH;
+	ppm[AIL] = MID_SIGNAL_WIDTH;
+	ppm[ELE] = MID_SIGNAL_WIDTH;
+	ppm[THR] = MID_SIGNAL_WIDTH;
+	ppm[RUD] = MID_SIGNAL_WIDTH;
+	ppm[FLAPS] = MID_SIGNAL_WIDTH;
+	ppm[GEAR] = MID_SIGNAL_WIDTH;
+	ppm[MIX] = MID_SIGNAL_WIDTH;
+	ppm[AUX1] = MID_SIGNAL_WIDTH;
 	
 	/** set all trims to zero **/
 	/** TODO: read trims from eeprom **/
-	trims[AIL] = 2;
+	trims[SYNC] = HOME;
+	trims[AIL] = TRIM_CENTER;
 	trims[ELE] = TRIM_CENTER;
 	trims[THR] = TRIM_CENTER;
 	trims[RUD] = TRIM_CENTER;
@@ -370,6 +457,8 @@ void reset(){
 #endif
 	
 };
+
+
 
 
 
