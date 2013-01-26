@@ -21,11 +21,9 @@ void reset();
 void setupHardware();
 
 
-uint16_t getMappedChannelValue(uint8_t channel);
-uint16_t map(uint16_t);
-int16_t mapPercent(uint16_t, uint8_t);
+void getMappedChannelValue(uint8_t);
+
 uint16_t readAnalog(uint8_t);
-uint16_t ms_to_ticks(uint16_t);
 uint16_t micros_to_ticks(uint16_t);
 
 void clampTrim(uint8_t channel);
@@ -164,19 +162,12 @@ int main(){
 	while(1){
 		/**read pot inputs first of all
 		TODO: Do this on a timer and ISR**/
-		ppm[AIL]		=	getMappedChannelValue(AIL);
-		ppm[ELE]		=	getMappedChannelValue(ELE);
-		ppm[THR] 	= 	getMappedChannelValue(THR);
-		ppm[RUD] 	= 	getMappedChannelValue(RUD);
-		ppm[FLAPS] 	= 	getMappedChannelValue(FLAPS);
-      ppm[GEAR] 	= 	getMappedChannelValue(GEAR);
-
-		percent[AIL] = mapPercent(ppm[AIL], trims[AIL]);
-		percent[ELE] = mapPercent(ppm[ELE], trims[ELE]);
-		percent[THR] = mapPercent(ppm[THR], trims[THR]);
-		percent[RUD] = mapPercent(ppm[RUD], trims[RUD]);
-		percent[FLAPS] = mapPercent(ppm[FLAPS], trims[FLAPS]);
-		percent[GEAR] = mapPercent(ppm[GEAR], trims[GEAR]);
+		getMappedChannelValue(AIL);
+		getMappedChannelValue(ELE);
+		getMappedChannelValue(THR);
+		getMappedChannelValue(RUD);
+		getMappedChannelValue(FLAPS);
+      		getMappedChannelValue(GEAR);
 
 		processKeyInputs();
 		processDisplay();
@@ -225,18 +216,18 @@ void processKeyInputs(){
 			break;
 		case AIL...AUX1:
 			if(getKeyPressed(PINC, 0x01)) {_delay_ms(250); trims[SYNC] = HOME; return;}	/** menu pressed for 250 ms**/
-			if(getKeyPressed(PIND, TRIM_AIL_PLUS)) trims[SYNC]++;
-			if(getKeyPressed(PIND, TRIM_AIL_MINUS)) trims[SYNC]--;
+			if(getKeyPressed(PIND, TRIM_AIL_PLUS)) { _delay_ms(250); trims[SYNC]++; }
+			if(getKeyPressed(PIND, TRIM_AIL_MINUS)) { _delay_ms(250); trims[SYNC]--; }
 			break;
 		case SETTINGS:
 			if(getKeyPressed(PINC, 0x01)) {_delay_ms(250); saveGlobalSettings(); trims[SYNC] = HOME; return;}   /** menu pressed for 250 ms**/
-			if(getKeyPressed(PIND, TRIM_AIL_PLUS)) trims[SYNC]++;
-			if(getKeyPressed(PIND, TRIM_AIL_MINUS)) trims[SYNC]--;
+			if(getKeyPressed(PIND, TRIM_AIL_PLUS)) { _delay_ms(250); trims[SYNC]++; }
+			if(getKeyPressed(PIND, TRIM_AIL_MINUS)) { _delay_ms(250); trims[SYNC]--; }
 			break;
 		case CALIBRATION:
 			if(getKeyPressed(PINC, 0x01)) {_delay_ms(250); saveCalibration(); trims[SYNC] = HOME; return;}   /** menu pressed for 250 ms**/
-			if(getKeyPressed(PIND, TRIM_AIL_PLUS)) trims[SYNC]++;
-			if(getKeyPressed(PIND, TRIM_AIL_MINUS)) trims[SYNC]--;
+			if(getKeyPressed(PIND, TRIM_AIL_PLUS)) { _delay_ms(250); trims[SYNC]++; }
+			if(getKeyPressed(PIND, TRIM_AIL_MINUS)) { _delay_ms(250); trims[SYNC]--; }
 			calibrateChannel(AIL);
 			calibrateChannel(ELE);
 			calibrateChannel(THR);
@@ -263,7 +254,7 @@ void processDisplay(){
 			sprintf(szBuffer, "ELE    Tr  ms");				
 			break;
 		case THR:
-			sprintf(szBuffer, "THR 	  Tr  ms");				
+			sprintf(szBuffer, "THR    Tr  ms");				
 			break;		
 		case RUD:
 			sprintf(szBuffer, "RUD    Tr  ms");				
@@ -301,26 +292,15 @@ void processDisplay(){
 #endif
 }
 
-int16_t mapPercent(uint16_t value, uint8_t trim){
-	/** traversal range is always between -500 and 500 and the percent value, 200 points window for trims
-	 	mapping needs to be between -100 and 100, so this is a shortcut
-	**/
-	int16_t midVal =(MIN_SIGNAL_WIDTH + trim + MAX_SIGNAL_WIDTH + trim)/2.0;
-	int16_t m =(value - (midVal));
-	return m/5;
-};
-
-
-uint16_t getMappedChannelValue(uint8_t ch){
+void getMappedChannelValue(uint8_t ch){
 	/** read up the canonical channel value**/
 	uint16_t value = readAnalog(ch);
-   /** apply trims **/
-   value	+=	trims[ch];
-	/** apply the lerp **/
-	value	*=	((float)SIGNAL_TRAVERSAL)/((calibrationUpper[ch - 1] - calibrationLower[ch - 1]));
-   /** adjust to the SIGNAL_TRAVERSAL range **/
-   value	+=	MIN_SIGNAL_WIDTH;
-	return value;
+	float calibratedChannelRange = calibrationUpper[ch - 1] - calibrationLower[ch - 1];
+	float stickMoveRatio = (value - calibrationLower[ch - 1])/calibratedChannelRange;
+	 
+	ppm[ch] = MIN_SIGNAL_WIDTH + ((stickMoveRatio * (float)SIGNAL_TRAVERSAL)) + trims[ch];
+
+	percent[ch] = (200 * stickMoveRatio) - 100;
 }
 
 
