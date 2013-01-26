@@ -26,7 +26,9 @@ void getMappedChannelValue(uint8_t);
 uint16_t readAnalog(uint8_t);
 uint16_t micros_to_ticks(uint16_t);
 
-void clampTrim(uint8_t channel);
+void incTrim(uint8_t channel);
+void decTrim(uint8_t channel);
+
 uint8_t getKeyPressed(uint8_t port, uint8_t key);
 void processKeyInputs();
 void processDisplay();
@@ -75,8 +77,15 @@ void saveCalibration();
 MAX_CHANNEL + 1 - Global Settings
 MAX_CHANNEL + 2 - Calibration
 **/
+
+#define HOME	0
 #define SETTINGS    MAX_CHANNEL + 1
 #define CALIBRATION MAX_CHANNEL + 2
+
+
+#define TRIM_UPPER_END 200
+#define TRIM_LOWER_END 0
+#define TRIM_CENTER 100
 
 #define TRIM_AIL_PLUS 0x01
 #define TRIM_AIL_MINUS 0x02
@@ -87,8 +96,7 @@ MAX_CHANNEL + 2 - Calibration
 #define TRIM_RUD_PLUS 0x40
 #define TRIM_RUD_MINUS 0x80
 
-#define TRIM_COMBO_MENU (TRIM_AIL_PLUS | TRIM_AIL_MINUS | TRIM_ELE_PLUS | TRIM_ELE_MINUS)
-#define HOME	SYNC
+
 
 uint16_t EEMEM _eepromOk = 29543;				/**DO NOT CHANGE THIS **/   	
 uint8_t 	EEMEM _setupState = 0;					/** Default Setup Status: use to check first time setups **/
@@ -112,16 +120,6 @@ uint16_t SIGNAL_TRAVERSAL;
 uint16_t MID_SIGNAL_WIDTH;
 uint16_t SYNC_SIGNAL_WIDTH;
 
-
-#define TRIM_UPPER_END 200
-#define TRIM_LOWER_END 0
-#define TRIM_CENTER 100
-
-
-
-#define ADC_LOWER 0
-#define ADC_UPPER 1023
-
 #define STARTADC ADCSRA |= (1<<ADEN) | (1<<ADPS0) | (1<<ADPS1) | (1<<ADPS0) | (1<<ADIE);
 
 int16_t ppm[MAX_CHANNEL + 1];	/** accomodate +1 for the sync channel **/
@@ -135,7 +133,7 @@ char szBuffer[16];
 static int channel = SYNC;
 
 int main(){
-   loadGlobalSettings();
+	loadGlobalSettings();
 
 	setupHardware();
 	if(EEPROM_OK != 29543){
@@ -144,7 +142,7 @@ int main(){
 			lcd_gotoxy(0, 1);
 			lcd_puts("Load Def. EEPROM");
 		}
-      return;
+	return;
 	}
 
 	loadCalibration();
@@ -193,26 +191,28 @@ void calibrateChannel(uint8_t channel)
 		calibrationLower[channel - 1] = calibration;
 }
 
-void clampTrim(uint8_t channel){
-	if(trims[channel] > TRIM_UPPER_END)
+void incTrim(uint8_t channel){
+	if(++trims[channel] > TRIM_UPPER_END)
 		trims[channel] = TRIM_UPPER_END;
-	if(trims[channel] > 0 && trims[channel]<= TRIM_LOWER_END)
-		trims[channel] = TRIM_LOWER_END;
 }
 
+void decTrim(uint8_t ch){
+	if(trims[channel] > 0 && --trims[channel]<= TRIM_LOWER_END)
+		trims[channel] = TRIM_LOWER_END;
+}
 void processKeyInputs(){
 	/** keys behave differently on each screen **/
 	switch(trims[SYNC]){
 		case HOME:
 			if(getKeyPressed(PINC, 0x01)) {_delay_ms(250); trims[SYNC] = AIL; return;}	/** menu pressed for 250 ms**/
-			if(getKeyPressed(PIND, TRIM_AIL_PLUS)) clampTrim(++trims[AIL]);
-			if(getKeyPressed(PIND, TRIM_AIL_MINUS)) clampTrim(--trims[AIL]);
-			if(getKeyPressed(PIND, TRIM_ELE_PLUS)) clampTrim(++trims[ELE]);
-			if(getKeyPressed(PIND, TRIM_ELE_MINUS)) clampTrim(--trims[ELE]);
-			if(getKeyPressed(PIND, TRIM_THR_PLUS)) clampTrim(++trims[THR]);
-			if(getKeyPressed(PIND, TRIM_THR_MINUS)) clampTrim(--trims[THR]);
-			if(getKeyPressed(PIND, TRIM_RUD_PLUS)) clampTrim(++trims[RUD]);
-			if(getKeyPressed(PIND, TRIM_RUD_PLUS)) clampTrim(--trims[RUD]);
+			if(getKeyPressed(PIND, TRIM_AIL_PLUS)) incTrim(AIL);
+			if(getKeyPressed(PIND, TRIM_AIL_MINUS)) decTrim(AIL);
+			if(getKeyPressed(PIND, TRIM_ELE_PLUS)) incTrim(ELE);
+			if(getKeyPressed(PIND, TRIM_ELE_MINUS)) decTrim(ELE);
+			if(getKeyPressed(PIND, TRIM_THR_PLUS)) incTrim(THR);
+			if(getKeyPressed(PIND, TRIM_THR_MINUS)) decTrim(THR);
+			if(getKeyPressed(PIND, TRIM_RUD_PLUS)) incTrim(RUD);
+			if(getKeyPressed(PIND, TRIM_RUD_PLUS)) decTrim(RUD);
 			break;
 		case AIL...AUX1:
 			if(getKeyPressed(PINC, 0x01)) {_delay_ms(250); trims[SYNC] = HOME; return;}	/** menu pressed for 250 ms**/
@@ -326,9 +326,9 @@ void loadGlobalSettings(){
 	EEPROM_OK = eeprom_read_word(&_eepromOk);								/** read eeprom status **/
 	SETUP_STATE = eeprom_read_byte(&_setupState);                  /** read setup status **/
 	MIN_SIGNAL_WIDTH = eeprom_read_word(&_minSignalWidth);			/** read signal lengths **/
-   MAX_SIGNAL_WIDTH = eeprom_read_word(&_maxSignalWidth);
-   INTER_CHANNEL_WIDTH = eeprom_read_word(&_interChannelWidth);	
-   FRAME_WIDTH = eeprom_read_word(&_frameWidth);
+	MAX_SIGNAL_WIDTH = eeprom_read_word(&_maxSignalWidth);
+	INTER_CHANNEL_WIDTH = eeprom_read_word(&_interChannelWidth);	
+	FRAME_WIDTH = eeprom_read_word(&_frameWidth);
 };
 
 void loadModelSettings(){
@@ -343,13 +343,13 @@ void loadParameters(){
 
 void saveGlobalSettings(){
 	eeprom_write_word(&_minSignalWidth, MIN_SIGNAL_WIDTH);
-   eeprom_write_word(&_maxSignalWidth, MAX_SIGNAL_WIDTH);
-   eeprom_write_word(&_interChannelWidth, INTER_CHANNEL_WIDTH);
-   eeprom_write_word(&_frameWidth, FRAME_WIDTH);
+	eeprom_write_word(&_maxSignalWidth, MAX_SIGNAL_WIDTH);
+	eeprom_write_word(&_interChannelWidth, INTER_CHANNEL_WIDTH);
+	eeprom_write_word(&_frameWidth, FRAME_WIDTH);
 };
 void loadCalibration(){
-	eeprom_read_block((void*)&calibrationUpper, (const void*)_calibrationUpper, sizeof(uint16_t) * MAX_CALIBRATABLE_CHANNEL);	
-	eeprom_read_block((void*)&_calibrationLower, (const void*)calibrationLower, sizeof(uint16_t) * MAX_CALIBRATABLE_CHANNEL);	
+	eeprom_read_block((void*)&calibrationUpper, (const void*)_calibrationUpper, 2 * MAX_CALIBRATABLE_CHANNEL);	
+	eeprom_read_block((void*)&calibrationLower, (const void*)_calibrationLower, 2 * MAX_CALIBRATABLE_CHANNEL);	
 };
 
 void saveCalibration(){
