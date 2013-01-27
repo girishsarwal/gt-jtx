@@ -7,7 +7,7 @@
 ; ------------------------------------------------------------
 .MICRO "ATmega8"
 .TOOLCHAIN "GCC"
-.GCCPATH   "C:\WinAVR-20100110"
+.GCCPATH   "C:\Program Files\WinAVR 20100110"
 .GCCMAKE   AUTO
 .TARGET    "gt-jtx.hex"
 .SOURCE    "lcd.c" "gt-jtx.c"
@@ -50,6 +50,7 @@ K5 PD5 VSS
 K6 PD6 VSS
 K7 PD7 VSS
 KC PC0 VSS
+
 
 
 

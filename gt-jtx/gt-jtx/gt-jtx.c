@@ -21,7 +21,8 @@ void reset();
 void setupHardware();
 
 
-void getMappedChannelValue(uint8_t);
+void getAnalogChannelValue(uint8_t);
+void getDigitalChannelValue(uint8_t);
 
 uint16_t readAnalog(uint8_t);
 uint16_t micros_to_ticks(uint16_t);
@@ -44,40 +45,22 @@ void saveCalibration();
 
 #define USE_LCD_DISPLAY
 
-/** Data Masks **/
-
-/** indexing in data array **/
-#define CHANNEL_1 1
-#define CHANNEL_2 2
-#define CHANNEL_3 3
-#define CHANNEL_4 4
-#define CHANNEL_5 5
-#define CHANNEL_6 6
-#define CHANNEL_7 7
-#define CHANNEL_8 8
-#define CHANNEL_9	9
-#define CHANNEL_10 10
-
 /** channel mapping to named items **/
 #define SYNC	0
-#define AIL		CHANNEL_1
-#define ELE		CHANNEL_2
-#define THR		CHANNEL_3
-#define RUD		CHANNEL_4
-#define FLAPS 	CHANNEL_5
-#define GEAR 	CHANNEL_6
-#define MIX 	CHANNEL_7
-#define AUX1 	CHANNEL_8
+#define AIL		1
+#define ELE		2
+#define THR		3
+#define RUD		4
+#define FLAPS 	5
 
-#define MAX_CHANNEL AUX1
-#define MAX_CALIBRATABLE_CHANNEL RUD
+#define MAX_CHANNEL FLAPS
+#define MAX_ANALOG_CHANNEL RUD
 /** Screens -
 0 - home screen,
 1 - AUX1 - channel settings
 MAX_CHANNEL + 1 - Global Settings
 MAX_CHANNEL + 2 - Calibration
 **/
-
 #define HOME	0
 #define SETTINGS    MAX_CHANNEL + 1
 #define CALIBRATION MAX_CHANNEL + 2
@@ -96,17 +79,19 @@ MAX_CHANNEL + 2 - Calibration
 #define TRIM_RUD_PLUS 0x40
 #define TRIM_RUD_MINUS 0x80
 
+#define MAGIC_NUMBER 29543              		
+/**DO NOT CHANGE THIS **/
 
 
-uint16_t EEMEM _eepromOk = 29543;				/**DO NOT CHANGE THIS **/   	
+uint16_t EEMEM _eepromOk = MAGIC_NUMBER;			 	
 uint8_t 	EEMEM _setupState = 0;					/** Default Setup Status: use to check first time setups **/
 uint16_t EEMEM _minSignalWidth = 700;
 uint16_t EEMEM _maxSignalWidth = 1700;
 uint16_t EEMEM _interChannelWidth = 300;
 uint16_t EEMEM _frameWidth = 22500;
 uint8_t 	EEMEM _trims[MAX_CHANNEL + 1];
-uint16_t	EEMEM _calibrationUpper[MAX_CALIBRATABLE_CHANNEL];
-uint16_t	EEMEM _calibrationLower[MAX_CALIBRATABLE_CHANNEL];
+uint16_t	EEMEM _calibrationUpper[MAX_ANALOG_CHANNEL];
+uint16_t	EEMEM _calibrationLower[MAX_ANALOG_CHANNEL];
 
 uint16_t EEPROM_OK;
 uint8_t SETUP_STATE;
@@ -123,10 +108,10 @@ uint16_t SYNC_SIGNAL_WIDTH;
 #define STARTADC ADCSRA |= (1<<ADEN) | (1<<ADPS0) | (1<<ADPS1) | (1<<ADPS0) | (1<<ADIE);
 
 int16_t ppm[MAX_CHANNEL + 1];	/** accomodate +1 for the sync channel **/
-uint8_t trims[MAX_CHANNEL + 1];		/** max channels for trims. Although atm only first 4 are useful, trims will always range from -100 to +100 points **/
-int8_t percent[MAX_CHANNEL + 1];
-uint16_t calibrationUpper[MAX_CALIBRATABLE_CHANNEL];		/** we only need calibration for 1-4 on the sticks **/
-uint16_t calibrationLower[MAX_CALIBRATABLE_CHANNEL];
+uint8_t trims[MAX_ANALOG_CHANNEL + 1];		/** max channels for trims. Although atm only first 4 are useful, trims will always range from -100 to +100 points **/
+int8_t percent[MAX_ANALOG_CHANNEL + 1];
+uint16_t calibrationUpper[MAX_ANALOG_CHANNEL];		/** we only need calibration for 1-4 on the sticks **/
+uint16_t calibrationLower[MAX_ANALOG_CHANNEL];
 
 char szBuffer[16];
 
@@ -136,16 +121,34 @@ int main(){
 	loadGlobalSettings();
 
 	setupHardware();
+	
+   lcd_puts("#    gt-jtx    #");
+	lcd_gotoxy(0, 1);
+	lcd_puts("#     ver 1    #");
+	_delay_ms(3000);	
+	lcd_clrscr();
+	
 	if(EEPROM_OK != 29543){
 		while(1){
 			lcd_puts("EEPROM MISSING!");
 			lcd_gotoxy(0, 1);
 			lcd_puts("Load Def. EEPROM");
 		}
-	return;
 	}
 
-	loadCalibration();
+	loadDefaultCalibration();
+	
+	if(!((SETUP_STATE & 0x01 == 0x01)               /** check for Upper Calibration Limits **/
+		|| ((SETUP_STATE & 0x02) ==0x02)) ) {			/** check for Lower Calibration Limits **/
+			
+		trims[SYNC] = CALIBRATION;							/** something is not set,
+																		we will start with the calibration screen **/
+	}
+	else{
+		loadCalibration();
+		trims[SYNC] = HOME;
+	}
+
 	loadParameters();
 	
 	reset();
@@ -155,17 +158,19 @@ int main(){
 
 	/** start our timer **/
 	TIMSK |= (1<<OCIE1A);
+	
 	/** start the adc **/
 	ADCSRA |= (1<<ADSC);
+
 	while(1){
 		/**read pot inputs first of all
 		TODO: Do this on a timer and ISR**/
-		getMappedChannelValue(AIL);
-		getMappedChannelValue(ELE);
-		getMappedChannelValue(THR);
-		getMappedChannelValue(RUD);
-		getMappedChannelValue(FLAPS);
-      		getMappedChannelValue(GEAR);
+		getAnalogChannelValue(AIL);
+		getAnalogChannelValue(ELE);
+		getAnalogChannelValue(THR);
+		getAnalogChannelValue(RUD);
+		
+		getDigitalChannelValue(FLAPS);
 
 		processKeyInputs();
 		processDisplay();
@@ -182,23 +187,23 @@ uint8_t getKeyPressed(uint8_t port, uint8_t key){
 	}	
 	return 0x00;
 }
-void calibrateChannel(uint8_t channel)
+void calibrateChannel(uint8_t ch)
 {
-	uint16_t calibration = readAnalog(channel);
-	if(calibrationUpper[channel - 1] < calibration)
-		calibrationUpper[channel - 1] = calibration;
-	if(calibrationLower[channel - 1] > calibration)
-		calibrationLower[channel - 1] = calibration;
+	uint16_t calibration = readAnalog(ch);
+	if(calibrationUpper[ch - 1] < calibration)
+		calibrationUpper[ch - 1] = calibration;
+	if(calibrationLower[ch - 1] > calibration)
+		calibrationLower[ch - 1] = calibration;
 }
 
-void incTrim(uint8_t channel){
-	if(++trims[channel] > TRIM_UPPER_END)
-		trims[channel] = TRIM_UPPER_END;
+void incTrim(uint8_t ch){
+	if(++trims[ch] > TRIM_UPPER_END)
+		trims[ch] = TRIM_UPPER_END;
 }
 
 void decTrim(uint8_t ch){
-	if(trims[channel] > 0 && --trims[channel]<= TRIM_LOWER_END)
-		trims[channel] = TRIM_LOWER_END;
+	if(trims[ch] > 0 && --trims[ch]<= TRIM_LOWER_END)
+		trims[ch] = TRIM_LOWER_END;
 }
 void processKeyInputs(){
 	/** keys behave differently on each screen **/
@@ -214,7 +219,7 @@ void processKeyInputs(){
 			if(getKeyPressed(PIND, TRIM_RUD_PLUS)) incTrim(RUD);
 			if(getKeyPressed(PIND, TRIM_RUD_PLUS)) decTrim(RUD);
 			break;
-		case AIL...AUX1:
+		case AIL...MAX_CHANNEL:
 			if(getKeyPressed(PINC, 0x01)) {_delay_ms(250); trims[SYNC] = HOME; return;}	/** menu pressed for 250 ms**/
 			if(getKeyPressed(PIND, TRIM_AIL_PLUS)) { _delay_ms(250); trims[SYNC]++; }
 			if(getKeyPressed(PIND, TRIM_AIL_MINUS)) { _delay_ms(250); trims[SYNC]--; }
@@ -260,16 +265,7 @@ void processDisplay(){
 			sprintf(szBuffer, "RUD    Tr  ms");				
 			break;		
 		case FLAPS:
-			sprintf(szBuffer, "FLAPS  Tr  ms");				
-			break;		
-		case GEAR:
-			sprintf(szBuffer, "GEAR   Tr  ms");				
-			break;		
-		case MIX:
-			sprintf(szBuffer, "MIX    Tr  ms");				
-			break;		
-		case AUX1:
-			sprintf(szBuffer, "AUX1   Tr  ms");				
+			sprintf(szBuffer, "FLAPS      ms");				
 			break;		
 		case SETTINGS:
 			lcd_puts("SAVE SETTINGS?");
@@ -292,15 +288,28 @@ void processDisplay(){
 #endif
 }
 
-void getMappedChannelValue(uint8_t ch){
+void getAnalogChannelValue(uint8_t ch){
 	/** read up the canonical channel value**/
 	uint16_t value = readAnalog(ch);
 	float calibratedChannelRange = calibrationUpper[ch - 1] - calibrationLower[ch - 1];
 	float stickMoveRatio = (value - calibrationLower[ch - 1])/calibratedChannelRange;
-	 
+	
 	ppm[ch] = MIN_SIGNAL_WIDTH + ((stickMoveRatio * (float)SIGNAL_TRAVERSAL)) + trims[ch];
 
 	percent[ch] = (200 * stickMoveRatio) - 100;
+}
+
+void getDigitalChannelValue(uint8_t ch){
+	/** read up the canonical channel value**/
+	uint16_t value = readAnalog(ch);
+	if(value < 512){
+		ppm[ch] = MAX_SIGNAL_WIDTH + TRIM_CENTER;
+		percent[ch] = 100;
+	}
+	else{
+		ppm[ch] = MIN_SIGNAL_WIDTH + TRIM_CENTER;
+		percent[ch] = -100;
+	}
 }
 
 
@@ -347,15 +356,27 @@ void saveGlobalSettings(){
 	eeprom_write_word(&_interChannelWidth, INTER_CHANNEL_WIDTH);
 	eeprom_write_word(&_frameWidth, FRAME_WIDTH);
 };
+void loadDefaultCalibration(){
+	/** load the default settings **/
+	calibrationUpper[AIL - 1] = 0;
+	calibrationUpper[ELE - 1] = 0;
+	calibrationUpper[THR - 1] = 0;
+	calibrationUpper[RUD - 1] = 0;
+	
+	calibrationLower[AIL - 1] = 1024;
+	calibrationLower[ELE - 1] = 1024;
+	calibrationLower[THR - 1] = 1024;
+	calibrationLower[RUD - 1] = 1024;
+}
 void loadCalibration(){
-	eeprom_read_block((void*)&calibrationUpper, (const void*)_calibrationUpper, 2 * MAX_CALIBRATABLE_CHANNEL);	
-	eeprom_read_block((void*)&calibrationLower, (const void*)_calibrationLower, 2 * MAX_CALIBRATABLE_CHANNEL);	
+	eeprom_read_block((void*)&calibrationUpper, (const void*)_calibrationUpper, 2 * MAX_ANALOG_CHANNEL);	
+	eeprom_read_block((void*)&calibrationLower, (const void*)_calibrationLower, 2 * MAX_ANALOG_CHANNEL);	
 };
 
 void saveCalibration(){
-	eeprom_write_block(&_calibrationUpper, calibrationUpper, sizeof(uint16_t) * RUD);
-	eeprom_write_block(&_calibrationLower, calibrationLower, sizeof(uint16_t) * RUD);
-	SETUP_STATE |= (1<<0) || (1<<1);
+	eeprom_write_block((void*)&calibrationUpper, (const void*)_calibrationUpper, 2 * MAX_ANALOG_CHANNEL);
+	eeprom_write_block((void*)&calibrationLower, (const void*)_calibrationLower, 2 * MAX_ANALOG_CHANNEL);
+	SETUP_STATE |= (1<<0) | (1<<1);
 	eeprom_write_byte(&_setupState, SETUP_STATE);		/**write back byte to the calibration**/
 };
 
@@ -421,40 +442,15 @@ void reset(){
 	ppm[THR] = MID_SIGNAL_WIDTH;
 	ppm[RUD] = MID_SIGNAL_WIDTH;
 	ppm[FLAPS] = MID_SIGNAL_WIDTH;
-	ppm[GEAR] = MID_SIGNAL_WIDTH;
-	ppm[MIX] = MID_SIGNAL_WIDTH;
-	ppm[AUX1] = MID_SIGNAL_WIDTH;
 	
 	/** set all trims to zero **/
 	/** TODO: read trims from eeprom **/
-	trims[SYNC] = HOME;
+	
 	trims[AIL] = TRIM_CENTER;
 	trims[ELE] = TRIM_CENTER;
 	trims[THR] = TRIM_CENTER;
 	trims[RUD] = TRIM_CENTER;
-	trims[FLAPS] = TRIM_CENTER;
-	trims[GEAR] = TRIM_CENTER;
-	trims[MIX] = TRIM_CENTER;
-	trims[AUX1] = TRIM_CENTER;
-	
-	if(!((SETUP_STATE & 0x01 == 0x01)               /** check for Upper Calibration Limits **/
-		|| ((SETUP_STATE & 0x02) ==0x02)) )				/** check for Lower Calibration Limits **/
-	{
-		trims[SYNC] = CALIBRATION;							/** something is not set,
-																		we will start with the calibration screen **/
-	}
-	
-	/** see where to move this code **/
-	calibrationUpper[AIL - 1] = 0;
-	calibrationUpper[ELE - 1] = 0;
-	calibrationUpper[THR - 1] = 0;
-	calibrationUpper[RUD - 1] = 0;
-	
-	calibrationLower[AIL - 1] = 1024;
-	calibrationLower[ELE - 1] = 1024;
-	calibrationLower[THR - 1] = 1024;
-	calibrationLower[RUD - 1] = 1024;
-	
+
 	
 	/** reset to the first channel **/
 #ifdef START_FROM_FIRST_CHANNEL_WIDTH
@@ -469,28 +465,5 @@ void reset(){
 	channel = -1;
 	OCR1A = micros_to_ticks(INTER_CHANNEL_WIDTH);
 #endif
-	
+
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
