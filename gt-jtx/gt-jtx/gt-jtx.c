@@ -105,6 +105,28 @@ uint16_t SIGNAL_TRAVERSAL;
 uint16_t MID_SIGNAL_WIDTH;
 uint16_t SYNC_SIGNAL_WIDTH;
 
+/** Character strings **/
+const char* _strTitle = "#    gt-jtx    #";
+const char* _strVersion = "#   m8-ver-1   #";
+const char* _strPosVal = "+%d";
+const char* _strNegVal = "%d";
+const char* _strEepromError = "EEPROM MISSING!";
+const char* _strLoadDefEeprom = "Load Def. EEPROM";
+const char* _strHome1 = "A:     E:     FL"; 
+const char* _strHome2 = "T:     R:       ";
+const char* _strAil = "AIL ";
+const char* _strEle = "ELE ";
+const char* _strThr = "THR ";
+const char* _strRud = "RUD ";
+const char* _strFlaps = "FLAPS ";
+const char* _strMs ="ms";
+const char* _strTrim = " Trim";
+const char* _strReverse = " R ";
+const char* _strYes = "Y";
+const char* _strNo = "N";
+
+char* pszBuffer = 0;
+
 #define STARTADC ADCSRA |= (1<<ADEN) | (1<<ADPS0) | (1<<ADPS1) | (1<<ADPS0) | (1<<ADIE);
 
 int16_t ppm[MAX_CHANNEL + 1];	/** accomodate +1 for the sync channel **/
@@ -113,26 +135,24 @@ int8_t percent[MAX_ANALOG_CHANNEL + 1];
 uint16_t calibrationUpper[MAX_ANALOG_CHANNEL];		/** we only need calibration for 1-4 on the sticks **/
 uint16_t calibrationLower[MAX_ANALOG_CHANNEL];
 
-char szBuffer[16];
-
 static int channel = SYNC;
 
 int main(){
+	pszBuffer = malloc(4 * sizeof(char));
 	loadGlobalSettings();
-
 	setupHardware();
 	
-   lcd_puts("#    gt-jtx    #");
+   	lcd_puts(_strTitle);
 	lcd_gotoxy(0, 1);
-	lcd_puts("#     ver 1    #");
+	lcd_puts(_strVersion);
 	_delay_ms(3000);	
 	lcd_clrscr();
 	
 	if(EEPROM_OK != 29543){
 		while(1){
-			lcd_puts("EEPROM MISSING!");
+			lcd_puts(_strEepromError);
 			lcd_gotoxy(0, 1);
-			lcd_puts("Load Def. EEPROM");
+			lcd_puts(_strLoadDefEeprom);
 		}
 	}
 
@@ -217,12 +237,15 @@ void processKeyInputs(){
 			if(getKeyPressed(PIND, TRIM_THR_PLUS)) incTrim(THR);
 			if(getKeyPressed(PIND, TRIM_THR_MINUS)) decTrim(THR);
 			if(getKeyPressed(PIND, TRIM_RUD_PLUS)) incTrim(RUD);
-			if(getKeyPressed(PIND, TRIM_RUD_PLUS)) decTrim(RUD);
+			if(getKeyPressed(PIND, TRIM_RUD_MINUS)) decTrim(RUD);
 			break;
 		case AIL...MAX_CHANNEL:
 			if(getKeyPressed(PINC, 0x01)) {_delay_ms(250); trims[SYNC] = HOME; return;}	/** menu pressed for 250 ms**/
 			if(getKeyPressed(PIND, TRIM_AIL_PLUS)) { _delay_ms(250); trims[SYNC]++; }
 			if(getKeyPressed(PIND, TRIM_AIL_MINUS)) { _delay_ms(250); trims[SYNC]--; }
+			if(getKeyPressed(PIND, TRIM_THR_PLUS)) { incTrim(trims[SYNC]); }
+			if(getKeyPressed(PIND, TRIM_THR_MINUS)) { decTrim(trims[SYNC]); }
+			
 			break;
 		case SETTINGS:
 			if(getKeyPressed(PINC, 0x01)) {_delay_ms(250); saveGlobalSettings(); trims[SYNC] = HOME; return;}   /** menu pressed for 250 ms**/
@@ -246,26 +269,32 @@ void processDisplay(){
 	lcd_home();
 	switch(trims[SYNC]){
 		case HOME:
-			sprintf(szBuffer, "A:%d E:%d", percent[AIL], percent[ELE]);
-			lcd_puts(szBuffer);
+			lcd_puts(_strHome1);
 			lcd_gotoxy(0,1);
-			sprintf(szBuffer, "T:%d R:%d", percent[THR], percent[RUD]);
-			lcd_puts(szBuffer);
+			lcd_puts(_strHome2);
+			sprintf(pszBuffer, percent[AIL] >= 0 ?_strPosVal:_strNegVal, percent[AIL]); lcd_gotoxy(2, 0); lcd_puts(pszBuffer);
+			sprintf(pszBuffer, percent[ELE] >= 0 ?_strPosVal:_strNegVal, percent[ELE]); lcd_gotoxy(9, 0); lcd_puts(pszBuffer);
+			sprintf(pszBuffer, percent[THR] >= 0 ?_strPosVal:_strNegVal, percent[THR]); lcd_gotoxy(2, 1); lcd_puts(pszBuffer);
+			sprintf(pszBuffer, percent[RUD] >= 0 ?_strPosVal:_strNegVal, percent[RUD]); lcd_gotoxy(9, 1); lcd_puts(pszBuffer);			
+			lcd_gotoxy(14, 1);
+			lcd_puts(percent[FLAPS] > 0? _strYes:_strNo);			
+			_delay_ms(100);			
 			return;
-		case AIL:
-			sprintf(szBuffer, "AIL    Tr  ms");
+		case AIL:			
+			lcd_puts(_strAil);lcd_puts(_strTrim);lcd_puts(_strReverse);lcd_puts(_strMs);
+			sprintf(pszBuffer, percent[trims[SYNC]] >= 0?_strPosVal:_strNegVal, percent[trims[SYNC]]);lcd_gotoxy(0, 1);lcd_puts(pszBuffer);
+			sprintf(pszBuffer, _strNegVal, trims[trims[SYNC]]);lcd_gotoxy(5, 1); lcd_puts(pszBuffer); 
+			/**Todo: byte for checking invert status **/lcd_gotoxy(10, 1); lcd_puts(_strNo);
+			sprintf(pszBuffer, _strNegVal, ppm[trims[SYNC]]);lcd_gotoxy(12, 1); lcd_puts(pszBuffer);		
 			break;
 		case ELE:
-			sprintf(szBuffer, "ELE    Tr  ms");				
+			
 			break;
 		case THR:
-			sprintf(szBuffer, "THR    Tr  ms");				
 			break;		
 		case RUD:
-			sprintf(szBuffer, "RUD    Tr  ms");				
 			break;		
 		case FLAPS:
-			sprintf(szBuffer, "FLAPS      ms");				
 			break;		
 		case SETTINGS:
 			lcd_puts("SAVE SETTINGS?");
@@ -281,11 +310,8 @@ void processDisplay(){
 			trims[SYNC] = AIL;	/**Reset to home screen, if we don't know where we are **/
 			return;
 			}
-		lcd_puts(szBuffer);
-		lcd_gotoxy(0,1);
-		sprintf(szBuffer, "%d   %d  %d", percent[trims[SYNC]], trims[trims[SYNC]], ppm[trims[SYNC]]);
-		lcd_puts(szBuffer);
 #endif
+	_delay_ms(100);			
 }
 
 void getAnalogChannelValue(uint8_t ch){
