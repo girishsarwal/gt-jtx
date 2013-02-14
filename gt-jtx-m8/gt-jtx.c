@@ -52,14 +52,24 @@ MAX_CHANNEL + 2 - Calibration
 #define TRIM_LOWER_END 0
 #define TRIM_CENTER 100
 
-#define TRIM_AIL_PLUS 0x01
+/*#define TRIM_AIL_PLUS 0x01
 #define TRIM_AIL_MINUS 0x02
 #define TRIM_ELE_PLUS 0x04
 #define TRIM_ELE_MINUS 0x08
 #define TRIM_THR_PLUS 0x10
 #define TRIM_THR_MINUS 0x20
 #define TRIM_RUD_PLUS 0x40
-#define TRIM_RUD_MINUS 0x80
+#define TRIM_RUD_MINUS 0x80*/
+
+#define TRIM_AIL_PLUS 0x80
+#define TRIM_AIL_MINUS 0x08
+#define TRIM_ELE_PLUS 0x04
+#define TRIM_ELE_MINUS 0x02
+#define TRIM_THR_PLUS 0x40
+#define TRIM_THR_MINUS 0x20
+#define TRIM_RUD_PLUS 0x10
+#define TRIM_RUD_MINUS 0x01
+
 
 #define MAGIC_NUMBER 29543              		
 /**DO NOT CHANGE THIS **/
@@ -164,7 +174,7 @@ int main(){
    lcd_puts(_strTitle);
 	lcd_gotoxy(0, 1);
 	lcd_puts(_strVersion);
-//	_delay_ms(1000);	
+	_delay_ms(1000);	
 	lcd_clrscr();
 	
 	
@@ -258,7 +268,7 @@ void checkNavigation(){
 }
 void loadModelSettings(){
 	/** read the trims **/
-	eeprom_read_block(&trims, _trims, sizeof(char) * 4);
+	eeprom_read_block(&trims, _trims, sizeof(uint8_t) * (MAX_CHANNEL + 1));
 	/** read the reverse settings **/
 	reverse = eeprom_read_byte(&_reverse);
 	
@@ -282,20 +292,20 @@ void processKeyInputs(){
 			checkNavigation();
 			if(getKeyPressed(PIND, TRIM_ELE_PLUS)) { incTrim(currentScreen); }
 			if(getKeyPressed(PIND, TRIM_ELE_MINUS)) { decTrim(currentScreen); }
-			if(getKeyPressed(PIND, TRIM_THR_PLUS)) { reverse |= (1<<(currentScreen - 1));	}
-			if(getKeyPressed(PIND, TRIM_THR_MINUS)) {	reverse &= (~(1 << (currentScreen - 1)));	}
+			if(getKeyPressed(PIND, TRIM_RUD_PLUS)) { reverse |= (1<<(currentScreen - 1));	}
+			if(getKeyPressed(PIND, TRIM_RUD_MINUS)) {	reverse &= (~(1 << (currentScreen - 1)));	}
 			break;
 		case SETTINGS1:
 			checkNavigation();
-			if(getKeyPressed(PIND, TRIM_ELE_PLUS)) { MIN_SIGNAL_WIDTH--; }
-			if(getKeyPressed(PIND, TRIM_ELE_MINUS)) { MIN_SIGNAL_WIDTH++; }
+			if(getKeyPressed(PIND, TRIM_ELE_PLUS)) { MIN_SIGNAL_WIDTH++; }
+			if(getKeyPressed(PIND, TRIM_ELE_MINUS)) { MIN_SIGNAL_WIDTH--; }
 			if(getKeyPressed(PIND, TRIM_THR_PLUS)) { MAX_SIGNAL_WIDTH++; }
 			if(getKeyPressed(PIND, TRIM_THR_MINUS)) { MAX_SIGNAL_WIDTH--; }
 			break;
 		case SETTINGS2:
 			checkNavigation();
-			if(getKeyPressed(PIND, TRIM_ELE_PLUS)) { INTER_CHANNEL_WIDTH--; }
-			if(getKeyPressed(PIND, TRIM_ELE_MINUS)) { INTER_CHANNEL_WIDTH++; }
+			if(getKeyPressed(PIND, TRIM_ELE_PLUS)) { INTER_CHANNEL_WIDTH++; }
+			if(getKeyPressed(PIND, TRIM_ELE_MINUS)) { INTER_CHANNEL_WIDTH--; }
 			if(getKeyPressed(PIND, TRIM_THR_PLUS)) { FRAME_WIDTH++; }
 			if(getKeyPressed(PIND, TRIM_THR_MINUS)) { FRAME_WIDTH--; }
 			
@@ -317,7 +327,7 @@ void processKeyInputs(){
 void showAnalogChannelSettings(){
 	lcd_puts(_strSeparator);lcd_puts(_strTrim);lcd_puts(_strSeparator);lcd_puts(_strSeparator);lcd_puts(_strReverse);lcd_puts(_strSeparator);lcd_puts(_strMs);
 	sprintf(pszBuffer, percent[currentScreen] >= 0?_strPosVal:_strNegVal, percent[currentScreen]);lcd_gotoxy(0, 1);lcd_puts(pszBuffer);
-	sprintf(pszBuffer, _strNegVal, trims[currentScreen - 1]);lcd_gotoxy(5, 1); lcd_puts(pszBuffer);
+	sprintf(pszBuffer, _strNegVal, trims[currentScreen]);lcd_gotoxy(5, 1); lcd_puts(pszBuffer);
 	uint8_t mask = (1 << (currentScreen - 1));
 	lcd_gotoxy(10, 1); lcd_puts((reverse & mask) == mask ? _strYes: _strNo);
 	sprintf(pszBuffer, _strNegVal, ppm[currentScreen]);lcd_gotoxy(12, 1); lcd_puts(pszBuffer);		
