@@ -12,7 +12,7 @@
 #  Sander Pool
 #  Frederik Rouleau
 #  Markus Pfaff
-#
+#  Girish Sarwal - The amount of changes I had to do to this file, because VMLAB just refused to compile for some idiotic reason under Window, deserves my name here
 # On command line:
 #
 # make all = Make software.
@@ -57,7 +57,7 @@ OPT = s
 
 
 # List C source files here. (C dependencies are automatically generated.)
-SRC = lcd.c gt-jtx.c 
+SRC = lcd.c gt-jtx.c
 
 # If there is more than one source file, append them above, or modify and
 # uncomment the following:
@@ -76,12 +76,12 @@ SRC = lcd.c gt-jtx.c
 # Even though the DOS/Win* filesystem matches both .s and .S the same,
 # it will preserve the spelling of the filenames, and gcc itself does
 # care about how the name is spelled on its command-line.
-ASRC = 
+ASRC =
 
 
 # List any extra directories to look for include files here.
 #     Each directory must be seperated by a space.
-EXTRAINCDIRS = 
+EXTRAINCDIRS =
 
 
 # Optional compiler flags.
@@ -150,16 +150,12 @@ LDFLAGS =    -lm -Wl,-Map=$(TARGET).map -Wl,--cref
 # Type: avrdude -c ?
 # to get a full listing.
 #
-AVRDUDE_PROGRAMMER = stk500
-
-
-AVRDUDE_PORT = com1	   # programmer connected to serial device
-#AVRDUDE_PORT = lpt1	# programmer connected to parallel port
+AVRDUDE_PROGRAMMER = usbasp
 
 AVRDUDE_WRITE_FLASH = -U flash:w:$(TARGET).hex
-#AVRDUDE_WRITE_EEPROM = -U eeprom:w:$(TARGET).eep
+AVRDUDE_WRITE_EEPROM = -U eeprom:w:$(TARGET).eep
 
-AVRDUDE_FLAGS = -p $(MCU) -P $(AVRDUDE_PORT) -c $(AVRDUDE_PROGRAMMER)
+AVRDUDE_FLAGS = -p $(MCU) -c $(AVRDUDE_PROGRAMMER) -B10
 
 # Uncomment the following if you want avrdude's erase cycle counter.
 # Note that this counter needs to be initialized first using -Yn,
@@ -232,8 +228,8 @@ ALL_ASFLAGS = -mmcu=$(MCU) -I. -x assembler-with-cpp $(ASFLAGS)
 
 
 # Default target. COF target added by AMTools
-all: begin gccversion sizebefore $(TARGET).elf $(TARGET).hex $(TARGET).eep \
-	$(TARGET).lss $(TARGET).sym $(TARGET).cof sizeafter finished end
+all: begin gccversion sizebefore $(TARGET).cof $(TARGET).elf $(TARGET).hex $(TARGET).eep \
+	$(TARGET).lss $(TARGET).sym sizeafter finished end
 
 
 # Eye candy.
@@ -253,10 +249,10 @@ end:
 
 # Display size of file.
 sizebefore:
-	@if [ -f $(TARGET).elf ]; then echo; echo $(MSG_SIZE_BEFORE); $(ELFSIZE); echo; fi
+	@if exist $(TARGET).elf $(ELFSIZE)
 
 sizeafter:
-	@if [ -f $(TARGET).elf ]; then echo; echo $(MSG_SIZE_AFTER); $(ELFSIZE); echo; fi
+	@if exist $(TARGET).elf $(ELFSIZE)
 
 
 
@@ -355,10 +351,14 @@ program: $(TARGET).hex $(TARGET).eep
 %.cof: %.elf
 	@echo
 	@echo $(MSG_COFF) $(TARGET).cof
-	$(COFFCONVERT) -O coff-ext-avr $< $(TARGET).cof   # Extended COFF. Supported in VMLAB from rel. 3.10
+	$(COFFCONVERT) -O coff-ext-avr $< $(TARGET).cof
 #	$(COFFCONVERT) -O coff-avr $< $(TARGET).cof       # Old COFF.
 
-
+%.d: %.c
+	set -e; $(CC) -MM $(ALL_CFLAGS) $< \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > $@; \
+	[ -s $@ ] || rm -f $@
+	
 # Target: clean project.
 clean: begin clean_list finished end
 
@@ -391,9 +391,7 @@ clean_list :
 # This may not work with other shells or other seds.
 #
 %.d: %.c
-	set -e; $(CC) -MM $(ALL_CFLAGS) $< \
-	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > $@; \
-	[ -s $@ ] || rm -f $@
+	$(CC) -MM $(ALL_CFLAGS) $<
 
 
 # Remove the '-' if you want to see the dependency files generated.
@@ -404,6 +402,7 @@ clean_list :
 # Listing of phony targets.
 .PHONY : all begin finish end sizebefore sizeafter gccversion coff extcoff \
 	clean clean_list program
+
 
 
 

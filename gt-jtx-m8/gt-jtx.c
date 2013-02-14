@@ -11,33 +11,12 @@
 #endif
 
 #include <avr/io.h>
-#include <avr/eeprom.h>
-#include <math.h>
+
 #include <util/delay.h>
+#include <avr/eeprom.h>
 #include <avr/interrupt.h>
+#include <math.h>
 #include "lcd.h"
-
-void reset();
-void setupHardware();
-
-
-void getAnalogChannelValue(uint8_t);
-void getDigitalChannelValue(uint8_t);
-
-uint16_t readAnalog(uint8_t);
-uint16_t micros_to_ticks(uint16_t);
-
-void incTrim(uint8_t channel);
-void decTrim(uint8_t channel);
-
-uint8_t getKeyPressed(uint8_t port, uint8_t key);
-void processKeyInputs();
-void processDisplay();
-void loadParameters();
-void calibrateChannel(uint8_t channel);
-void loadGlobalSettings();
-void saveGlobalSettings();
-void saveCalibration();
 
 #define START_FROM_SYNC_CHANNEL_WIDTH
 //#define START_FROM_FIRST_CHANNEL_WIDTH
@@ -62,8 +41,11 @@ MAX_CHANNEL + 1 - Global Settings
 MAX_CHANNEL + 2 - Calibration
 **/
 #define HOME	0
-#define SETTINGS    MAX_CHANNEL + 1
-#define CALIBRATION MAX_CHANNEL + 2
+#define SETTINGS1   		MAX_CHANNEL + 1
+#define SETTINGS2   		MAX_CHANNEL + 2
+#define SAVE_SETTINGS 	MAX_CHANNEL + 3
+#define CALIBRATION 		MAX_CHANNEL + 4
+
 
 
 #define TRIM_UPPER_END 200
@@ -82,28 +64,38 @@ MAX_CHANNEL + 2 - Calibration
 #define MAGIC_NUMBER 29543              		
 /**DO NOT CHANGE THIS **/
 
+/** EEProm Definitions **/
+uint16_t 	EEMEM _eepromOk = MAGIC_NUMBER;			 	
+uint8_t 		EEMEM _setupState = 0;					/** Default Setup Status: use to check first time setups **/
+uint16_t 	EEMEM _minSignalWidth = 700;
+uint16_t 	EEMEM _maxSignalWidth = 1700;
+uint16_t 	EEMEM _interChannelWidth = 300;
+uint16_t 	EEMEM _frameWidth = 22500;
+uint8_t 		EEMEM _trims[MAX_CHANNEL + 1] = {0, 100, 100, 100, 100, 100};
+uint8_t 		EEMEM _reverse = 0x00;
+uint16_t		EEMEM _calibrationUpper[MAX_ANALOG_CHANNEL];
+uint16_t		EEMEM _calibrationLower[MAX_ANALOG_CHANNEL];
 
-uint16_t EEMEM _eepromOk = MAGIC_NUMBER;			 	
-uint8_t 	EEMEM _setupState = 0;					/** Default Setup Status: use to check first time setups **/
-uint16_t EEMEM _minSignalWidth = 700;
-uint16_t EEMEM _maxSignalWidth = 1700;
-uint16_t EEMEM _interChannelWidth = 300;
-uint16_t EEMEM _frameWidth = 22500;
-uint8_t 	EEMEM _trims[MAX_CHANNEL + 1];
-uint16_t	EEMEM _calibrationUpper[MAX_ANALOG_CHANNEL];
-uint16_t	EEMEM _calibrationLower[MAX_ANALOG_CHANNEL];
+uint16_t 	EEPROM_OK;
+uint8_t 		SETUP_STATE;
+uint16_t 	MAX_SIGNAL_WIDTH;
+uint16_t 	MIN_SIGNAL_WIDTH;
+uint16_t 	INTER_CHANNEL_WIDTH;
+uint16_t 	FRAME_WIDTH;
+uint8_t		trims[MAX_CHANNEL + 1];				/** max channels for trims. Although atm only first 4 are useful,
+															trims will always range from 0 to 200 points **/
+uint8_t		reverse;									/**reverse settings - 0 means not reversed, 1 means channel is reversed 0bXXX00010**/
+int8_t 		percent[MAX_CHANNEL + 1];
+uint16_t 	calibrationUpper[MAX_ANALOG_CHANNEL];		/** we only need calibration for 1-4 on the sticks **/
+uint16_t 	calibrationLower[MAX_ANALOG_CHANNEL];
 
-uint16_t EEPROM_OK;
-uint8_t SETUP_STATE;
-uint16_t MAX_SIGNAL_WIDTH;
-uint16_t MIN_SIGNAL_WIDTH;
-uint16_t INTER_CHANNEL_WIDTH;
-uint16_t FRAME_WIDTH;
-uint16_t SIGNAL_TRAVERSAL;
+uint16_t 	SIGNAL_TRAVERSAL;
+uint16_t 	MID_SIGNAL_WIDTH;
+uint16_t 	SYNC_SIGNAL_WIDTH;
+int16_t		ppm[MAX_CHANNEL + 1];	/** accomodate +1 for the sync channel **/
 
-
-uint16_t MID_SIGNAL_WIDTH;
-uint16_t SYNC_SIGNAL_WIDTH;
+char* 		pszBuffer = 0;
+uint8_t		currentScreen = 0;
 
 /** Character strings **/
 const char* _strTitle = "#    gt-jtx    #";
@@ -112,42 +104,71 @@ const char* _strPosVal = "+%d";
 const char* _strNegVal = "%d";
 const char* _strEepromError = "EEPROM MISSING!";
 const char* _strLoadDefEeprom = "Load Def. EEPROM";
-const char* _strHome1 = "A:     E:     FL"; 
+const char* _strHome1 = "A:     E:     FL";
 const char* _strHome2 = "T:     R:       ";
-const char* _strAil = "AIL ";
-const char* _strEle = "ELE ";
-const char* _strThr = "THR ";
-const char* _strRud = "RUD ";
-const char* _strFlaps = "FLAPS ";
+const char* _strAil = "AIL";
+const char* _strEle = "ELE";
+const char* _strThr = "THR";
+const char* _strRud = "RUD";
+const char* _strFlaps = "FLAPS";
 const char* _strMs ="ms";
-const char* _strTrim = " Trim";
-const char* _strReverse = " R ";
+const char* _strTrim = "Trim";
+const char* _strState = "St";
+const char* _strReverse = "R";
 const char* _strYes = "Y";
 const char* _strNo = "N";
+const char* _strGlobalSettings1Title = "Sig. Width (ms)";
+const char* _strGlobalSettings2Title = "IntCh. Frm. (us)";
+const char* _strSaveSettings = "SAVE SETTINGS?";
+const char* _strMenuToSave = "  Menu to save  ";
+const char* _strMoveAetrMinMax = "Mov AETR Min&Max";
+const char* _strSeparator = " ";
+const char* _strMin = "Min";
+const char* _strMax = "Max";
 
-char* pszBuffer = 0;
+/** Function Declaratons **/
+void reset();
+void setupHardware();
+void getAnalogChannelValue(uint8_t);
+void getDigitalChannelValue(uint8_t);
+uint16_t readAnalog(uint8_t);
+uint16_t micros_to_ticks(uint16_t);
+void loadModelSettings();
+void incTrim(uint8_t channel);
+void decTrim(uint8_t channel);
+uint8_t getKeyPressed(uint8_t port, uint8_t key);
+void processKeyInputs();
+void processDisplay();
+void loadParameters();
+void calibrateChannel(uint8_t channel);
+void loadGlobalSettings();
+void saveGlobalSettings();
+void saveCalibration();
+void checkNavigation();
+void saveReverse();
 
 #define STARTADC ADCSRA |= (1<<ADEN) | (1<<ADPS0) | (1<<ADPS1) | (1<<ADPS0) | (1<<ADIE);
-
-int16_t ppm[MAX_CHANNEL + 1];	/** accomodate +1 for the sync channel **/
-uint8_t trims[MAX_ANALOG_CHANNEL + 1];		/** max channels for trims. Although atm only first 4 are useful, trims will always range from -100 to +100 points **/
-int8_t percent[MAX_ANALOG_CHANNEL + 1];
-uint16_t calibrationUpper[MAX_ANALOG_CHANNEL];		/** we only need calibration for 1-4 on the sticks **/
-uint16_t calibrationLower[MAX_ANALOG_CHANNEL];
 
 static int channel = SYNC;
 
 int main(){
-	pszBuffer = malloc(4 * sizeof(char));
+	pszBuffer = malloc(5 * sizeof(char));
+	
+
+	/** start routines **/
 	loadGlobalSettings();
 	setupHardware();
-	
-   	lcd_puts(_strTitle);
+
+
+/** Splash Screen **/
+   lcd_puts(_strTitle);
 	lcd_gotoxy(0, 1);
 	lcd_puts(_strVersion);
-	_delay_ms(3000);	
+//	_delay_ms(1000);	
 	lcd_clrscr();
 	
+	
+	/** check EEPROM Sanity **/
 	if(EEPROM_OK != 29543){
 		while(1){
 			lcd_puts(_strEepromError);
@@ -156,21 +177,21 @@ int main(){
 		}
 	}
 
-	loadDefaultCalibration();
-	
+	loadDefaultCalibration();								/** Load Default Calibration Settings **/
+
 	if(!((SETUP_STATE & 0x01 == 0x01)               /** check for Upper Calibration Limits **/
 		|| ((SETUP_STATE & 0x02) ==0x02)) ) {			/** check for Lower Calibration Limits **/
 			
-		trims[SYNC] = CALIBRATION;							/** something is not set,
+		currentScreen = CALIBRATION;							/** something is not set,
 																		we will start with the calibration screen **/
 	}
 	else{
 		loadCalibration();
-		trims[SYNC] = HOME;
+		currentScreen = HOME;
 	}
-
-	loadParameters();
 	
+	loadParameters();
+	loadModelSettings();	
 	reset();
 
 	/**Enable global interrupts **/
@@ -198,7 +219,6 @@ int main(){
 };
 
 
-
 uint8_t getKeyPressed(uint8_t port, uint8_t key){
 	if(((~port) & key) == key)	
 	{
@@ -217,19 +237,37 @@ void calibrateChannel(uint8_t ch)
 }
 
 void incTrim(uint8_t ch){
-	if(++trims[ch] > TRIM_UPPER_END)
+	if(++trims[ch] > TRIM_UPPER_END){
 		trims[ch] = TRIM_UPPER_END;
+	}
+	eeprom_write_byte(&_trims[ch], trims[ch]);
 }
 
 void decTrim(uint8_t ch){
-	if(trims[ch] > 0 && --trims[ch]<= TRIM_LOWER_END)
+	if(trims[ch] > 0 && --trims[ch]<= TRIM_LOWER_END){
 		trims[ch] = TRIM_LOWER_END;
+	}
+	eeprom_write_byte(&_trims[ch], trims[ch]);
+}
+void saveReverse(){
+	eeprom_write_byte(&_reverse, reverse);
+}
+void checkNavigation(){
+	if(getKeyPressed(PIND, TRIM_AIL_PLUS)) { _delay_ms(250); currentScreen++; }
+	if(getKeyPressed(PIND, TRIM_AIL_MINUS)) { _delay_ms(250); currentScreen--; }
+}
+void loadModelSettings(){
+	/** read the trims **/
+	eeprom_read_block(&trims, _trims, sizeof(char) * 4);
+	/** read the reverse settings **/
+	reverse = eeprom_read_byte(&_reverse);
+	
 }
 void processKeyInputs(){
 	/** keys behave differently on each screen **/
-	switch(trims[SYNC]){
+	switch(currentScreen){
 		case HOME:
-			if(getKeyPressed(PINC, 0x01)) {_delay_ms(250); trims[SYNC] = AIL; return;}	/** menu pressed for 250 ms**/
+			if(getKeyPressed(PINC, 0x01)) {_delay_ms(250); currentScreen = AIL; return;}	/** menu pressed for 250 ms**/
 			if(getKeyPressed(PIND, TRIM_AIL_PLUS)) incTrim(AIL);
 			if(getKeyPressed(PIND, TRIM_AIL_MINUS)) decTrim(AIL);
 			if(getKeyPressed(PIND, TRIM_ELE_PLUS)) incTrim(ELE);
@@ -240,22 +278,35 @@ void processKeyInputs(){
 			if(getKeyPressed(PIND, TRIM_RUD_MINUS)) decTrim(RUD);
 			break;
 		case AIL...MAX_CHANNEL:
-			if(getKeyPressed(PINC, 0x01)) {_delay_ms(250); trims[SYNC] = HOME; return;}	/** menu pressed for 250 ms**/
-			if(getKeyPressed(PIND, TRIM_AIL_PLUS)) { _delay_ms(250); trims[SYNC]++; }
-			if(getKeyPressed(PIND, TRIM_AIL_MINUS)) { _delay_ms(250); trims[SYNC]--; }
-			if(getKeyPressed(PIND, TRIM_THR_PLUS)) { incTrim(trims[SYNC]); }
-			if(getKeyPressed(PIND, TRIM_THR_MINUS)) { decTrim(trims[SYNC]); }
+			if(getKeyPressed(PINC, 0x01)) {_delay_ms(250); currentScreen = HOME; return;}	/** menu pressed for 250 ms**/
+			checkNavigation();
+			if(getKeyPressed(PIND, TRIM_ELE_PLUS)) { incTrim(currentScreen); }
+			if(getKeyPressed(PIND, TRIM_ELE_MINUS)) { decTrim(currentScreen); }
+			if(getKeyPressed(PIND, TRIM_THR_PLUS)) { reverse |= (1<<(currentScreen - 1));	}
+			if(getKeyPressed(PIND, TRIM_THR_MINUS)) {	reverse &= (~(1 << (currentScreen - 1)));	}
+			break;
+		case SETTINGS1:
+			checkNavigation();
+			if(getKeyPressed(PIND, TRIM_ELE_PLUS)) { MIN_SIGNAL_WIDTH--; }
+			if(getKeyPressed(PIND, TRIM_ELE_MINUS)) { MIN_SIGNAL_WIDTH++; }
+			if(getKeyPressed(PIND, TRIM_THR_PLUS)) { MAX_SIGNAL_WIDTH++; }
+			if(getKeyPressed(PIND, TRIM_THR_MINUS)) { MAX_SIGNAL_WIDTH--; }
+			break;
+		case SETTINGS2:
+			checkNavigation();
+			if(getKeyPressed(PIND, TRIM_ELE_PLUS)) { INTER_CHANNEL_WIDTH--; }
+			if(getKeyPressed(PIND, TRIM_ELE_MINUS)) { INTER_CHANNEL_WIDTH++; }
+			if(getKeyPressed(PIND, TRIM_THR_PLUS)) { FRAME_WIDTH++; }
+			if(getKeyPressed(PIND, TRIM_THR_MINUS)) { FRAME_WIDTH--; }
 			
 			break;
-		case SETTINGS:
-			if(getKeyPressed(PINC, 0x01)) {_delay_ms(250); saveGlobalSettings(); trims[SYNC] = HOME; return;}   /** menu pressed for 250 ms**/
-			if(getKeyPressed(PIND, TRIM_AIL_PLUS)) { _delay_ms(250); trims[SYNC]++; }
-			if(getKeyPressed(PIND, TRIM_AIL_MINUS)) { _delay_ms(250); trims[SYNC]--; }
+		case SAVE_SETTINGS:
+			checkNavigation();
+			if(getKeyPressed(PINC, 0x01)) {_delay_ms(250); saveGlobalSettings(); saveReverse(); currentScreen = HOME; return;}   /** menu pressed for 250 ms**/
 			break;
 		case CALIBRATION:
-			if(getKeyPressed(PINC, 0x01)) {_delay_ms(250); saveCalibration(); trims[SYNC] = HOME; return;}   /** menu pressed for 250 ms**/
-			if(getKeyPressed(PIND, TRIM_AIL_PLUS)) { _delay_ms(250); trims[SYNC]++; }
-			if(getKeyPressed(PIND, TRIM_AIL_MINUS)) { _delay_ms(250); trims[SYNC]--; }
+			checkNavigation();
+			if(getKeyPressed(PINC, 0x01)) {_delay_ms(250); saveCalibration(); currentScreen = HOME; return;}   /** menu pressed for 250 ms**/
 			calibrateChannel(AIL);
 			calibrateChannel(ELE);
 			calibrateChannel(THR);
@@ -263,11 +314,27 @@ void processKeyInputs(){
 			break;
 	}
 }
+void showAnalogChannelSettings(){
+	lcd_puts(_strSeparator);lcd_puts(_strTrim);lcd_puts(_strSeparator);lcd_puts(_strSeparator);lcd_puts(_strReverse);lcd_puts(_strSeparator);lcd_puts(_strMs);
+	sprintf(pszBuffer, percent[currentScreen] >= 0?_strPosVal:_strNegVal, percent[currentScreen]);lcd_gotoxy(0, 1);lcd_puts(pszBuffer);
+	sprintf(pszBuffer, _strNegVal, trims[currentScreen - 1]);lcd_gotoxy(5, 1); lcd_puts(pszBuffer);
+	uint8_t mask = (1 << (currentScreen - 1));
+	lcd_gotoxy(10, 1); lcd_puts((reverse & mask) == mask ? _strYes: _strNo);
+	sprintf(pszBuffer, _strNegVal, ppm[currentScreen]);lcd_gotoxy(12, 1); lcd_puts(pszBuffer);		
+}
+void showDigitalChannelSettings(){
+	lcd_puts(_strSeparator);lcd_puts(_strState);lcd_puts(_strSeparator);lcd_puts(_strSeparator);lcd_puts(_strReverse);lcd_puts(_strSeparator);lcd_puts(_strMs);
+	sprintf(pszBuffer, percent[currentScreen] >= 0?_strPosVal:_strNegVal, percent[currentScreen]);lcd_gotoxy(0, 1);lcd_puts(pszBuffer);
+	lcd_gotoxy(6, 1); lcd_puts(percent[currentScreen] >= 0? _strYes: _strNo);
+	uint8_t mask = (1 << (currentScreen - 1));
+	lcd_gotoxy(10, 1); lcd_puts((reverse & mask)== mask ? _strYes: _strNo);
+	sprintf(pszBuffer, _strNegVal, ppm[currentScreen]);lcd_gotoxy(12, 1); lcd_puts(pszBuffer);
+}
 void processDisplay(){
 #ifdef USE_LCD_DISPLAY
 	lcd_clrscr();
 	lcd_home();
-	switch(trims[SYNC]){
+	switch(currentScreen){
 		case HOME:
 			lcd_puts(_strHome1);
 			lcd_gotoxy(0,1);
@@ -281,33 +348,48 @@ void processDisplay(){
 			_delay_ms(100);			
 			return;
 		case AIL:			
-			lcd_puts(_strAil);lcd_puts(_strTrim);lcd_puts(_strReverse);lcd_puts(_strMs);
-			sprintf(pszBuffer, percent[trims[SYNC]] >= 0?_strPosVal:_strNegVal, percent[trims[SYNC]]);lcd_gotoxy(0, 1);lcd_puts(pszBuffer);
-			sprintf(pszBuffer, _strNegVal, trims[trims[SYNC]]);lcd_gotoxy(5, 1); lcd_puts(pszBuffer); 
-			/**Todo: byte for checking invert status **/lcd_gotoxy(10, 1); lcd_puts(_strNo);
-			sprintf(pszBuffer, _strNegVal, ppm[trims[SYNC]]);lcd_gotoxy(12, 1); lcd_puts(pszBuffer);		
+			lcd_puts(_strAil);showAnalogChannelSettings();
 			break;
 		case ELE:
-			
+			lcd_puts(_strEle);showAnalogChannelSettings();			
 			break;
 		case THR:
+			lcd_puts(_strThr);showAnalogChannelSettings();			
 			break;		
 		case RUD:
+			lcd_puts(_strRud);showAnalogChannelSettings();			
 			break;		
 		case FLAPS:
+			lcd_puts(_strFlaps);showDigitalChannelSettings();						
 			break;		
-		case SETTINGS:
-			lcd_puts("SAVE SETTINGS?");
+		case SETTINGS1:
+			lcd_puts(_strGlobalSettings1Title);
 			lcd_gotoxy(0, 1);
-			lcd_puts("  Menu to save  ");
+			lcd_puts(_strMin);
+			sprintf(pszBuffer, _strNegVal, MIN_SIGNAL_WIDTH + TRIM_CENTER);lcd_puts(pszBuffer);
+			lcd_gotoxy(8, 1);
+			lcd_puts(_strMax);
+			sprintf(pszBuffer, _strNegVal, MAX_SIGNAL_WIDTH + TRIM_CENTER);lcd_puts(pszBuffer);
+			break;
+		case SETTINGS2:
+			lcd_puts(_strGlobalSettings2Title);
+			lcd_gotoxy(0, 1);		
+			sprintf(pszBuffer, _strNegVal, INTER_CHANNEL_WIDTH);lcd_puts(pszBuffer);
+			lcd_gotoxy(8, 1);
+			sprintf(pszBuffer, _strNegVal, FRAME_WIDTH);lcd_puts(pszBuffer);
+			break;
+		case SAVE_SETTINGS:
+			lcd_puts(_strSaveSettings);
+			lcd_gotoxy(0, 1);
+			lcd_puts(_strMenuToSave);
 			return;
 		case CALIBRATION:
-			lcd_puts("CAL-Menu to save");
+			lcd_puts(_strMoveAetrMinMax);
 			lcd_gotoxy(0, 1);
-			lcd_puts("Mov AETR Min&Max");
+			lcd_puts(_strMenuToSave);
 			return;
      	default:
-			trims[SYNC] = AIL;	/**Reset to home screen, if we don't know where we are **/
+			currentScreen = AIL;	/**Reset to home screen, if we don't know where we are **/
 			return;
 			}
 #endif
@@ -320,6 +402,10 @@ void getAnalogChannelValue(uint8_t ch){
 	float calibratedChannelRange = calibrationUpper[ch - 1] - calibrationLower[ch - 1];
 	float stickMoveRatio = (value - calibrationLower[ch - 1])/calibratedChannelRange;
 	
+	/**adjust for reverse **/
+	uint8_t mask = (1<< (ch -1));
+	if ((reverse & mask) == mask)	 stickMoveRatio = 1 - stickMoveRatio;
+	
 	ppm[ch] = MIN_SIGNAL_WIDTH + ((stickMoveRatio * (float)SIGNAL_TRAVERSAL)) + trims[ch];
 
 	percent[ch] = (200 * stickMoveRatio) - 100;
@@ -328,14 +414,13 @@ void getAnalogChannelValue(uint8_t ch){
 void getDigitalChannelValue(uint8_t ch){
 	/** read up the canonical channel value**/
 	uint16_t value = readAnalog(ch);
-	if(value < 512){
-		ppm[ch] = MAX_SIGNAL_WIDTH + TRIM_CENTER;
-		percent[ch] = 100;
-	}
-	else{
-		ppm[ch] = MIN_SIGNAL_WIDTH + TRIM_CENTER;
-		percent[ch] = -100;
-	}
+	/** we need to do a xor here to swap condition for reverse and signal length **/
+	uint8_t mask = (1 << (ch -1));
+	
+	uint8_t xoredSignal = (value < 512) ^ ((reverse & mask) == mask);
+	
+	ppm[ch] = (xoredSignal ? MIN_SIGNAL_WIDTH : MAX_SIGNAL_WIDTH) + TRIM_CENTER;
+	percent[ch] = xoredSignal ? -100 : 100;
 }
 
 
@@ -366,9 +451,6 @@ void loadGlobalSettings(){
 	FRAME_WIDTH = eeprom_read_word(&_frameWidth);
 };
 
-void loadModelSettings(){
-	/** load trim settings **/
-};
 
 void loadParameters(){
 	MID_SIGNAL_WIDTH = ((MAX_SIGNAL_WIDTH + MIN_SIGNAL_WIDTH)/2) + TRIM_CENTER;
@@ -388,7 +470,7 @@ void loadDefaultCalibration(){
 	calibrationUpper[ELE - 1] = 0;
 	calibrationUpper[THR - 1] = 0;
 	calibrationUpper[RUD - 1] = 0;
-	
+
 	calibrationLower[AIL - 1] = 1024;
 	calibrationLower[ELE - 1] = 1024;
 	calibrationLower[THR - 1] = 1024;
@@ -446,7 +528,6 @@ void setupHardware(){
 	ADMUX |= (1<<REFS0);				
 	ADCSRA |= (1<<ADEN); 				/** enable the ADC **/
 	ADCSRA|= (1<<ADPS2) | (1<<ADPS1) | (1<<ADPS0);	/**F_CPU/64 Prescalar **/
-	
 };
 
 
@@ -468,16 +549,7 @@ void reset(){
 	ppm[THR] = MID_SIGNAL_WIDTH;
 	ppm[RUD] = MID_SIGNAL_WIDTH;
 	ppm[FLAPS] = MID_SIGNAL_WIDTH;
-	
-	/** set all trims to zero **/
-	/** TODO: read trims from eeprom **/
-	
-	trims[AIL] = TRIM_CENTER;
-	trims[ELE] = TRIM_CENTER;
-	trims[THR] = TRIM_CENTER;
-	trims[RUD] = TRIM_CENTER;
 
-	
 	/** reset to the first channel **/
 #ifdef START_FROM_FIRST_CHANNEL_WIDTH
 	channel = AIL;
@@ -493,3 +565,9 @@ void reset(){
 #endif
 
 };
+
+
+
+
+
+

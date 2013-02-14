@@ -7,8 +7,8 @@
 ; ------------------------------------------------------------
 .MICRO "ATmega8"
 .TOOLCHAIN "GCC"
-.GCCPATH   "C:\Program Files\WinAVR 20100110"
-.GCCMAKE   AUTO
+.GCCPATH   "C:\WinAVR-20100110"
+.GCCMAKE   "makefile"
 .TARGET    "gt-jtx.hex"
 .SOURCE    "lcd.c" "gt-jtx.c"
 
@@ -29,6 +29,8 @@
 V1 PC1 VSS SLIDER_1(0 5)
 V2 PC2 VSS SLIDER_2(0 5)
 V3 PC3 VSS SLIDER_3(0 5)
+KC PC0 VSS				;Menu Button
+KD PC5 VDD LATCHED	;Flaps Button
 
 ;PORT B is Output (PPM + LCD)
 .PLOT v(PB0)
@@ -49,7 +51,11 @@ K4 PD4 VSS
 K5 PD5 VSS
 K6 PD6 VSS
 K7 PD7 VSS
-KC PC0 VSS
+
+
+
+
+
 
 
 
