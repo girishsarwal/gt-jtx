@@ -249,10 +249,10 @@ end:
 
 # Display size of file.
 sizebefore:
-	@if exist $(TARGET).elf $(ELFSIZE)
+	@if [ -f $(TARGET).elf ]; then $(ELFSIZE); fi
 
 sizeafter:
-	@if exist $(TARGET).elf $(ELFSIZE)
+	@if [ -f $(TARGET).elf ]; then $(ELFSIZE); fi
 
 
 
