@@ -225,11 +225,14 @@ LST = $(ASRC:.S=.lst) $(SRC:.c=.lst)
 ALL_CFLAGS = -mmcu=$(MCU) -I. $(CFLAGS)
 ALL_ASFLAGS = -mmcu=$(MCU) -I. -x assembler-with-cpp $(ASFLAGS)
 
+windows: begin gccversion winsize $(TARGET).cof $(TARGET).elf $(TARGET).hex $(TARGET).eep \
+	$(TARGET).lss $(TARGET).sym winsize finished end
 
+linux: all
 
 # Default target. COF target added by AMTools
-all: begin gccversion sizebefore $(TARGET).cof $(TARGET).elf $(TARGET).hex $(TARGET).eep \
-	$(TARGET).lss $(TARGET).sym sizeafter finished end
+all: begin gccversion size $(TARGET).cof $(TARGET).elf $(TARGET).hex $(TARGET).eep \
+	$(TARGET).lss $(TARGET).sym size finished end
 
 
 # Eye candy.
@@ -248,12 +251,11 @@ end:
 
 
 # Display size of file.
-sizebefore:
+size:
 	@if [ -f $(TARGET).elf ]; then $(ELFSIZE); fi
 
-sizeafter:
-	@if [ -f $(TARGET).elf ]; then $(ELFSIZE); fi
-
+winsize:
+	if exist $(TARGET).elf $(ELFSIZE)
 
 
 # Display compiler version information.
