@@ -43,7 +43,7 @@ DIRINC = .
 DIRLIB = $(DIRAVR)/avr/lib
 
 # MCU name
-MCU = atmega8
+MCU = atmega32
 
 # Output format. (can be srec, ihex, binary)
 FORMAT = ihex
@@ -53,11 +53,11 @@ TARGET = gt-jtx
 
 # Optimization level, can be [0, 1, 2, 3, s]. 0 turns off optimization.
 # (Note: 3 is not always the best optimization level. See avr-libc FAQ.)
-OPT = s
+OPT = 0
 
 
 # List C source files here. (C dependencies are automatically generated.)
-SRC = lcd.c gt-jtx.c
+SRC = hellolcd.c ks0108.c
 
 # If there is more than one source file, append them above, or modify and
 # uncomment the following:
@@ -139,7 +139,7 @@ ASFLAGS =  -Wa,-adhlns=$(<:.S=.lst) -Wa,-gstabs
 # -lm = math library
 #LDFLAGS += -lm
 
-LDFLAGS =    -lm -Wl,-Map=$(TARGET).map -Wl,--cref
+LDFLAGS = -lm -Wl,-Map=$(TARGET).map -Wl,--cref
 
 
 # Programming support using avrdude. Settings and variables.
@@ -402,6 +402,8 @@ clean_list :
 # Listing of phony targets.
 .PHONY : all begin finish end sizebefore sizeafter gccversion coff extcoff \
 	clean clean_list program
+
+
 
 
 
