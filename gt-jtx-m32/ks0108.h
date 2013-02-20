@@ -5,7 +5,7 @@
  * known Problems: none
  * Version:        1.1
  * Description:    Graphic Library for KS0108- (and compatible) based LCDs
- * 
+ *
  */
 
 #include <inttypes.h>
@@ -16,9 +16,9 @@
 
 // Ports
 #define LCD_CMD_PORT		PORTD		// Command Output Register
-#define LCD_CMD_DIR			DDRD		// Data Direction Register for Command Port
+#define LCD_CMD_DIR		DDRD		// Data Direction Register for Command Port
 
-#define LCD_DATA_IN			PINC		// Data Input Register
+#define LCD_DATA_IN		PINC		// Data Input Register
 #define LCD_DATA_OUT		PORTC		// Data Output Register
 #define LCD_DATA_DIR		DDRC		// Data Direction Register for Data Port
 
@@ -99,3 +99,4 @@ void ks0108WriteCommand(uint8_t cmd, uint8_t chip);
 void ks0108WriteData(uint8_t data);
 
 #endif
+

@@ -7,10 +7,10 @@
 ; ------------------------------------------------------------
 .MICRO "ATmega32"
 .TOOLCHAIN "GCC"
-.GCCPATH   "C:\WinAVR-20100110"
+.GCCPATH   "C:\Program Files\WinAVR 20100110"
 .GCCMAKE   "makefile"
 .TARGET    "gt-jtx.hex"
-.SOURCE    "hellolcd.c" "ks0108.c"
+.SOURCE    "hellolcd.c" "ks0108.c" "ks0108.h"
 
 .TRACE              ; Activate micro trace
 
@@ -25,20 +25,6 @@
 ; Define here the hardware around the micro
 ; ------------------------------------------------------------
 
-;PORT C is input
-V1 PC1 VSS SLIDER_1(0 5)
-V2 PC2 VSS SLIDER_2(0 5)
-V3 PC3 VSS SLIDER_3(0 5)
-KC PC0 VSS				;Menu Button
-KD PC5 VDD LATCHED	;Flaps Button
-
-;PORT B is Output (PPM + LCD)
-.PLOT v(PB0)
-.PLOT v(PB1)
-.PLOT v(PC1)
-.PLOT v(PC2)
-.PLOT v(PC3)
-.PLOT v(PD0)
 ;X[inst_name]  LCD(chars lines oscil_freq) RS RW E D7 D6 D5 D4 D3 D2 D1 D0
 ;X1  LCD(16 2 250K) PB6 PB7 PB0 PB5 PB4 PB3 PB2 nc1 nc2 nc3 nc4
 
@@ -46,19 +32,12 @@ KD PC5 VDD LATCHED	;Flaps Button
 ;X _graphiclcd <RS> <RW> <E> <D7> <D6> <D4> <D5> <D3> <D2> <D1> <D0>
 ;+ </CS1> </CS2> </RST> <LED+> <LED->
 
-X _graphiclcd PD0 PD1 PD2 PC7 PC6 PC5 PC4 PC3 PC2 PC1 PC0 PD3 PD4 VDD VDD VSS
+X _graphiclcd PD0 PD1 PD2 PC7 PC6 PC5 PC4 PC3 PC2 PC1 PC0 PD4 PD3 VDD VDD VSS
 
 
 
-;Trim Switches
-K0 PD0 VSS
-K1 PD1 VSS
-K2 PD2 VSS
-K3 PD3 VSS
-K4 PD4 VSS
-K5 PD5 VSS
-K6 PD6 VSS
-K7 PD7 VSS
+
+
 
 
 
