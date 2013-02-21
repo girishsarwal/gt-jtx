@@ -16,7 +16,6 @@
 #include <avr/eeprom.h>
 #include <avr/interrupt.h>
 #include <math.h>
-#include "lcd.h"
 
 
 /** channel mapping to named items **/
@@ -31,7 +30,7 @@
 #define CH8		7
 #define SYNC	8
 
-#define MAX_CHANNEL SYNC
+#define MAX_CHANNEL CH8
 /** Screens -
 0 - home screen,
 1 - AUX1 - channel settings
@@ -50,14 +49,14 @@ MAX_CHANNEL + 2 - Calibration
 #define TRIM_LOWER_END 0
 #define TRIM_CENTER 100
 
-#define SIG_TRIM_AIL_PLUS 		0x01
-#define SIG_TRIM_AIL_MINUS 	0x02
-#define SIG_TRIM_ELE_PLUS 		0x04
-#define SIG_TRIM_ELE_MINUS 	0x08
-#define SIG_TRIM_THR_PLUS 		0x10
-#define SIG_TRIM_THR_MINUS 	0x20
-#define SIG_TRIM_RUD_PLUS 		0x40
-#define SIG_TRIM_RUD_MINUS 	0x80
+#define SIG_TRIM_AIL_PLUS 		0
+#define SIG_TRIM_AIL_MINUS 	1
+#define SIG_TRIM_ELE_PLUS 		2
+#define SIG_TRIM_ELE_MINUS 	3
+#define SIG_TRIM_THR_PLUS 		4
+#define SIG_TRIM_THR_MINUS 	5
+#define SIG_TRIM_RUD_PLUS 		6
+#define SIG_TRIM_RUD_MINUS 	7
 
 #define PORT_ANALOG	PORTA
 #define DDR_ANALOG	DDRA
@@ -69,7 +68,7 @@ MAX_CHANNEL + 2 - Calibration
 
 #define PORT_PPM		PORTD
 #define DDR_PPM		DDRD
-#define PIN_PPM		PORTD
+#define PIN_PPM		PIND
 
 #define PORT_MENU		PORTD
 #define DDR_MENU		DDRD
@@ -79,9 +78,9 @@ MAX_CHANNEL + 2 - Calibration
 #define DDR_SPEAK		DDRD
 
 
-#define SIG_PPM		0x20
-#define SIG_SPEAK		0x40
-#define SIG_MENU_KEY 0x80
+#define SIG_PPM		5
+#define SIG_SPEAK		6
+#define SIG_MENU_KEY 7
 
 
 
@@ -117,7 +116,7 @@ uint16_t 	calibrationLower[MAX_CHANNEL];
 uint16_t 	SIGNAL_TRAVERSAL;
 uint16_t 	MID_SIGNAL_WIDTH;
 uint16_t 	SYNC_SIGNAL_WIDTH;
-int16_t		ppm[MAX_CHANNEL + 1];	/** accomodate +1 for the sync channel **/
+int16_t		ppm[SYNC + 1];					/** SYNC is the last channel in a zero based index accomodate +1 for the sync channel **/
 
 char* 		pszBuffer = 0;
 uint8_t		currentScreen = 0;
@@ -227,10 +226,11 @@ int main(){
 		getAnalogChannelValue(THR);
 		getAnalogChannelValue(RUD);
 		
-		getDigitalChannelValue(CH5);
-      getDigitalChannelValue(CH6);
-      getDigitalChannelValue(CH7);
-      getDigitalChannelValue(CH8);
+		getAnalogChannelValue(CH5);
+      getAnalogChannelValue(CH6);
+      getAnalogChannelValue(CH7);
+      getAnalogChannelValue(CH8);
+
 		processKeyInputs();
 		processDisplay();
 	}
@@ -238,20 +238,20 @@ int main(){
 
 
 uint8_t getKeyPressed(uint8_t port, uint8_t key){
-	if(((~port) & key) == key)	
+	if(((~port) & (1 << key)) == (1 << key))	
 	{
 		_delay_ms(1);	/** get rid of keybounce **/
-		return (((~port) & key) == key);
+		return (((~port) & (1 << key)) == (1 << key));
 	}	
 	return 0x00;
 }
 void calibrateChannel(uint8_t ch)
 {
-	uint16_t calibration = readAnalog(ch);
-	if(calibrationUpper[ch - 1] < calibration)
-		calibrationUpper[ch - 1] = calibration;
-	if(calibrationLower[ch - 1] > calibration)
-		calibrationLower[ch - 1] = calibration;
+	uint16_t calibration = readAnalog(ch);		
+	if(calibrationUpper[ch] < calibration)
+		calibrationUpper[ch] = calibration;
+	if(calibrationLower[ch] > calibration)
+		calibrationLower[ch] = calibration;
 }
 
 void incTrim(uint8_t ch){
@@ -296,7 +296,7 @@ void processKeyInputs(){
 			if(getKeyPressed(PIN_TRIM, SIG_TRIM_RUD_MINUS)) decTrim(RUD);
 			break;
 		case AIL...MAX_CHANNEL:
-			if(getKeyPressed(PINC, 0x01)) {_delay_ms(250); currentScreen = HOME; return;}	/** menu pressed for 250 ms**/
+			if(getKeyPressed(PIN_MENU, SIG_MENU_KEY)) {_delay_ms(250); currentScreen = HOME; return;}	/** menu pressed for 250 ms**/
 			checkNavigation();
 			if(getKeyPressed(PIN_TRIM, SIG_TRIM_ELE_PLUS)) { incTrim(currentScreen); }
 			if(getKeyPressed(PIN_TRIM, SIG_TRIM_ELE_MINUS)) { decTrim(currentScreen); }
@@ -320,12 +320,12 @@ void processKeyInputs(){
 			break;
 		case SAVE_SETTINGS:
 			checkNavigation();
-			if(getKeyPressed(PIN_MENU, 0x01)) {_delay_ms(250); saveGlobalSettings(); saveReverse(); currentScreen = HOME; return;}   /** menu pressed for 250 ms**/
+			if(getKeyPressed(PIN_MENU, SIG_MENU_KEY)) {_delay_ms(250); saveGlobalSettings(); saveReverse(); currentScreen = HOME; return;}   /** menu pressed for 250 ms**/
 			break;
 		case CALIBRATION:
 			checkNavigation();
-			if(getKeyPressed(PIN_MENU, 0x01)) {_delay_ms(250); saveCalibration(); currentScreen = HOME; return;}   /** menu pressed for 250 ms**/
-			calibrateChannel(AIL);
+			if(getKeyPressed(PIN_MENU, SIG_MENU_KEY)) {_delay_ms(250); saveCalibration(); currentScreen = HOME; return;}   /** menu pressed for 250 ms**/
+/*			calibrateChannel(AIL);
 			calibrateChannel(ELE);
 			calibrateChannel(THR);
 			calibrateChannel(RUD);
@@ -333,6 +333,27 @@ void processKeyInputs(){
 			calibrateChannel(CH6);
 			calibrateChannel(CH7);
 			calibrateChannel(CH8);
+			*/
+			
+				calibrationUpper[AIL] = 1024;
+			calibrationUpper[ELE] = 1024;
+	calibrationUpper[THR] = 1024;
+	calibrationUpper[RUD] = 1024;
+	calibrationUpper[CH5] = 1024;
+	calibrationUpper[CH6] = 1024;
+	calibrationUpper[CH7] = 1024;
+	calibrationUpper[CH8] = 1024;
+	
+
+	calibrationLower[AIL] = 0;
+	calibrationLower[ELE] = 0;
+	calibrationLower[THR] = 0;
+	calibrationLower[RUD] = 0;
+	calibrationLower[CH5] = 0;
+	calibrationLower[CH6] = 0;
+	calibrationLower[CH7] = 0;
+	calibrationLower[CH8] = 0;
+			
 			break;
 	}
 }
@@ -426,11 +447,11 @@ void processDisplay(){
 void getAnalogChannelValue(uint8_t ch){
 	/** read up the canonical channel value**/
 	uint16_t value = readAnalog(ch);
-	float calibratedChannelRange = calibrationUpper[ch - 1] - calibrationLower[ch - 1];
-	float stickMoveRatio = (value - calibrationLower[ch - 1])/calibratedChannelRange;
+	float calibratedChannelRange = calibrationUpper[ch] - calibrationLower[ch];
+	float stickMoveRatio = (value - calibrationLower[ch])/calibratedChannelRange;
 	
 	/**adjust for reverse **/
-	uint8_t mask = (1<< (ch -1));
+	uint8_t mask = (1 << ch);
 	if ((reverse & mask) == mask)	 stickMoveRatio = 1 - stickMoveRatio;
 	
 	ppm[ch] = MIN_SIGNAL_WIDTH + ((stickMoveRatio * (float)SIGNAL_TRAVERSAL)) + trims[ch];
@@ -450,16 +471,15 @@ void getDigitalChannelValue(uint8_t ch){
 	percent[ch] = xoredSignal ? -100 : 100;
 }
 
-
 uint16_t micros_to_ticks(uint16_t value){
 	return (value * ((F_CPU/1000)/1000));
 };
 
 ISR(TIMER1_COMPA_vect){
-	TIMSK &= ~(1<<OCIE1A);
-	if((PIN_PPM & SIG_PPM) == SIG_PPM){		//If the actual pin is high, we need to set OCR1A to the complementary delay
-		if(++channel > MAX_CHANNEL){
-			channel = SYNC;
+	TIMSK &= ~(1 << OCIE1A);
+	if((PIN_PPM & (1 << SIG_PPM)) == (1 << SIG_PPM)){		//If the actual pin is high, we need to set OCR1A to the complementary delay
+		if(++channel > (MAX_CHANNEL + 1)){
+			channel = 0;
 		}
 		OCR1A = micros_to_ticks(ppm[channel]);
 	}		
@@ -551,8 +571,9 @@ void setupHardware(){
  	
  	/** PORTD has D:0-D:4 for LCD_CTRL, make D5 (MENU), D6 (SPEAKER), D7 (PPM) as output pins **/
  	DDR_MENU &= ~(1 << SIG_MENU_KEY);					/** D:7 is MENU KEY = 0**/
-  	DDR_SPEAK |= (1 << SIG_SPEAK);					/** D:6 is SPEAKER = 1**/
- 	DDR_PPM |= (1 << SIG_PPM);							/** D:5 is PPM = 1**/
+ 	PORT_MENU |= (1 << SIG_MENU_KEY);
+  	DDR_SPEAK |= (1 << SIG_SPEAK);						/** D:6 is SPEAKER = 1**/
+ 	DDR_PPM |= (1 << SIG_PPM);								/** D:5 is PPM = 1**/
  	
  	
 	TCNT1 = 0;
@@ -570,8 +591,8 @@ void setupHardware(){
 
 uint16_t readAnalog(uint8_t ch){
 	ch = ch & 0x07;					/** zero out all bits except last three for limiting channel **/
-	ADMUX &=0xE0;						/**reset channel selection **/
-	ADMUX |=ch;							/**select the requested channel **/
+	ADMUX &=0xE0;								/**reset channel selection **/
+	ADMUX |=ch;									/**select the requested channel **/
 	ADCSRA |= (1<<ADSC);
 	while(!(ADCSRA & (1<<ADIF)));
 	ADCSRA|= (1<<ADIF);
@@ -594,6 +615,7 @@ void reset(){
 	channel = SYNC;
 	OCR1A = micros_to_ticks(ppm[SYNC]);
 };
+
 
 
 

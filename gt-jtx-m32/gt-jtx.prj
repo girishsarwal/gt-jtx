@@ -26,16 +26,16 @@
 V1 PA0 VSS SLIDER_1(0 5) 	;Ch1 - Ail
 V2 PA1 VSS SLIDER_2(0 5) 	;Ch2 - Ele
 V3 PA2 VSS SLIDER_3(0 5) 	;Ch3 - Thr
-;V4 PA3 VSS				    	;Ch4 - Rud
+							    	;Ch4 - Rud
 K8 PA4 VDD LATCHED			;Ch-5 Button
 K9 PA5 VDD LATCHED			;Ch-6 Button
 KA PA6 VDD LATCHED			;Ch-7 Button
 KB PA7 VDD LATCHED			;Ch-8 Button
 
 ;we need to see inputs
+.PLOT v(PA0)
 .PLOT v(PA1)
 .PLOT v(PA2)
-.PLOT v(PA3)
 
 
 ;PORT B is Trims; double up as navigation switches
@@ -59,6 +59,7 @@ KC PD7 VSS				;Menu Button
 ;Port D:0-4 is LCD_CTRL
 ;Port C:0-7 is LCD_DATA
 X _graphiclcd PD0 PD1 PD2 PC7 PC6 PC5 PC4 PC3 PC2 PC1 PC0 PD4 PD3 VDD VDD VSS
+
 
 
 

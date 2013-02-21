@@ -57,7 +57,7 @@ OPT = 0
 
 
 # List C source files here. (C dependencies are automatically generated.)
-SRC = gt-jtx.c ks0108.c
+SRC = gt-jtx.c
 
 # If there is more than one source file, append them above, or modify and
 # uncomment the following:
@@ -106,7 +106,7 @@ EXTRAINCDIRS =
 #CFLAGS += -std=c99
 #CFLAGS += -std=gnu99
 
-CFLAGS =  -std=gnu99 -Os -gstabs -Wa,-adhlns=$(<:.c=.lst) -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums $(patsubst %,-I%,$(EXTRAINCDIRS)) -Wall -Wstrict-prototypes
+CFLAGS =  -std=gnu99 -O0 -gstabs -Wa,-adhlns=$(<:.c=.lst) -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums $(patsubst %,-I%,$(EXTRAINCDIRS)) -Wall -Wstrict-prototypes
 
 # Optional assembler flags.
 #  -Wa,...:   tell GCC to pass this to the assembler.
@@ -402,6 +402,7 @@ clean_list :
 # Listing of phony targets.
 .PHONY : all begin finish end sizebefore sizeafter gccversion coff extcoff \
 	clean clean_list program
+
 
 
 
