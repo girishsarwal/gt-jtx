@@ -10,7 +10,7 @@
 .GCCPATH   "C:\WinAVR-20100110"
 .GCCMAKE   AUTO
 .TARGET    "gt-jtx.hex"
-.SOURCE    "gt-jtx.c"
+.SOURCE    "gt-jtx.c" "ks0108.c"
 
 .TRACE              ; Activate micro trace
 
@@ -59,6 +59,7 @@ KC PD7 VSS				;Menu Button
 ;Port D:0-4 is LCD_CTRL
 ;Port C:0-7 is LCD_DATA
 X _graphiclcd PD0 PD1 PD2 PC7 PC6 PC5 PC4 PC3 PC2 PC1 PC0 PD4 PD3 VDD VDD VSS
+
 
 
 

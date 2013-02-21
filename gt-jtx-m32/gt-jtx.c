@@ -18,6 +18,8 @@
 #include <avr/eeprom.h>
 #include <avr/interrupt.h>
 #include <math.h>
+#include "ks0108.h"
+#include "arial_bold_14.h"
 
 
 /** channel mapping to named items **/
@@ -183,6 +185,8 @@ int main(){
 	setupHardware();
 
 	/** TODO:Splash Screen **/	
+	ks0108GotoXY(15, 10);
+	ks0108Puts(_strTitle);
 	/** check EEPROM Sanity **/
 	EEPROM_OK = eeprom_read_word(&_eepromOk);								/** read eeprom status **/
 	
@@ -547,7 +551,9 @@ void saveCalibration(){
 };
 
 void setupHardware(){
-	//lcd_init(LCD_DISP_ON);
+	/** setup lcd **/
+	ks0108Init(0);
+	ks0108SelectFont(Arial_Bold_14, ks0108ReadFontData, BLACK);
 	/** Setup I/O **/
 	/** Analog Inputs**/
 	DDR_ANALOG = 0x00;						
@@ -616,6 +622,7 @@ void reset(){
 	channel = SYNC;
 	OCR1A = micros_to_ticks(ppm[SYNC]);
 };
+
 
 
 
