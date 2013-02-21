@@ -57,7 +57,7 @@ OPT = 0
 
 
 # List C source files here. (C dependencies are automatically generated.)
-SRC = hellolcd.c ks0108.c
+SRC = gt-jtx.c ks0108.c
 
 # If there is more than one source file, append them above, or modify and
 # uncomment the following:
@@ -402,6 +402,11 @@ clean_list :
 # Listing of phony targets.
 .PHONY : all begin finish end sizebefore sizeafter gccversion coff extcoff \
 	clean clean_list program
+
+
+
+
+
 
 
 

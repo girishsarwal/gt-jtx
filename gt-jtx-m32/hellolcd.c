@@ -29,7 +29,7 @@ int main(void) {
 	// Set a position
 	ks0108GotoXY(15,10);
 	// Print some text
-	ks0108Puts_P(PSTR("KS0108-Treiber"));
+	ks0108Puts_P(PSTR("Girish Sarwal"));
 	// a nice little round rect
 	ks0108DrawRoundRect(5, 5, 117, 20, 8, BLACK);
 
@@ -39,8 +39,9 @@ int main(void) {
 	// Set a position
 	ks0108GotoXY(5,30);
 	// Print some text
-	ks0108Puts_P(PSTR("http://www.apetech.de\nmailto:me@apetech.de"));
+	ks0108Puts_P(PSTR("www.gluedtomatoes.com"));
 
 	while(1);
 }
+
 
