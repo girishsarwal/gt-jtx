@@ -10,6 +10,8 @@
 #define F_CPU 1000000UL
 #endif
 
+#define DEBUG
+
 #include <avr/io.h>
 
 #include <util/delay.h>
@@ -97,8 +99,8 @@ uint16_t 	EEMEM _interChannelWidth = 300;
 uint16_t 	EEMEM _frameWidth = 22500;
 uint8_t 		EEMEM _trims[MAX_CHANNEL + 1] = {100, 100, 100, 100, 100, 100, 100, 100};
 uint8_t 		EEMEM _reverse = 0x00;
-uint16_t		EEMEM _calibrationUpper[MAX_CHANNEL];
-uint16_t		EEMEM _calibrationLower[MAX_CHANNEL];
+uint16_t		EEMEM _calibrationUpper[MAX_CHANNEL + 1];
+uint16_t		EEMEM _calibrationLower[MAX_CHANNEL + 1];
 
 uint16_t 	EEPROM_OK;
 uint8_t 		SETUP_STATE;
@@ -106,12 +108,12 @@ uint16_t 	MAX_SIGNAL_WIDTH;
 uint16_t 	MIN_SIGNAL_WIDTH;
 uint16_t 	INTER_CHANNEL_WIDTH;
 uint16_t 	FRAME_WIDTH;
-uint8_t		trims[MAX_CHANNEL];				/** max channels for trims. Although atm only first 4 are useful,
+uint8_t		trims[MAX_CHANNEL + 1];				/** max channels for trims. Although atm only first 4 are useful,
 															trims will always range from 0 to 200 points **/
 uint8_t		reverse;									/**reverse settings - 0 means not reversed, 1 means channel is reversed 0bXXX00010**/
-int8_t 		percent[MAX_CHANNEL];
-uint16_t 	calibrationUpper[MAX_CHANNEL];		/** we only need calibration for 1-4 on the sticks **/
-uint16_t 	calibrationLower[MAX_CHANNEL];
+int8_t 		percent[MAX_CHANNEL + 1];
+uint16_t 	calibrationUpper[MAX_CHANNEL + 1];		/** we only need calibration for 1-4 on the sticks **/
+uint16_t 	calibrationLower[MAX_CHANNEL + 1];
 
 uint16_t 	SIGNAL_TRAVERSAL;
 uint16_t 	MID_SIGNAL_WIDTH;
@@ -177,26 +179,27 @@ static int channel = SYNC;
 
 int main(){
 	pszBuffer = malloc(5 * sizeof(char));
-	
 
-	/** start routines **/
-	loadGlobalSettings();
 	setupHardware();
-
 
 	/** TODO:Splash Screen **/	
 	/** check EEPROM Sanity **/
+	EEPROM_OK = eeprom_read_word(&_eepromOk);								/** read eeprom status **/
+	
 	if(EEPROM_OK != 29543){
 		while(1){
 		/**TODO: EEPROM ERROR MESSAGE **/
 		}
 	}
 
-	loadDefaultCalibration();								/** Load Default Calibration Settings **/
-
+	loadGlobalSettings();
+	loadParameters();
+   loadModelSettings();	
+	
+   SETUP_STATE = eeprom_read_byte(&_setupState);                  /** read setup status **/
 	if(!((SETUP_STATE & 0x01 == 0x01)               /** check for Upper Calibration Limits **/
 		|| ((SETUP_STATE & 0x02) ==0x02)) ) {			/** check for Lower Calibration Limits **/
-			
+		loadDefaultCalibration();								/** Load Default Calibration Settings **/
 		currentScreen = CALIBRATION;							/** something is not set,
 																		we will start with the calibration screen **/
 	}
@@ -205,8 +208,6 @@ int main(){
 		currentScreen = HOME;
 	}
 	
-	loadParameters();
-	loadModelSettings();	
 	reset();
 
 	/**Enable global interrupts **/
@@ -325,7 +326,28 @@ void processKeyInputs(){
 		case CALIBRATION:
 			checkNavigation();
 			if(getKeyPressed(PIN_MENU, SIG_MENU_KEY)) {_delay_ms(250); saveCalibration(); currentScreen = HOME; return;}   /** menu pressed for 250 ms**/
-/*			calibrateChannel(AIL);
+
+#ifdef DEBUG			
+			calibrationUpper[AIL] = 1024;
+			calibrationUpper[ELE] = 1024;
+			calibrationUpper[THR] = 1024;
+			calibrationUpper[RUD] = 1024;
+			calibrationUpper[CH5] = 1024;
+			calibrationUpper[CH6] = 1024;
+			calibrationUpper[CH7] = 1024;
+			calibrationUpper[CH8] = 1024;
+	
+
+			calibrationLower[AIL] = 0;
+			calibrationLower[ELE] = 0;
+			calibrationLower[THR] = 0;
+			calibrationLower[RUD] = 0;
+			calibrationLower[CH5] = 0;
+			calibrationLower[CH6] = 0;
+			calibrationLower[CH7] = 0;
+			calibrationLower[CH8] = 0;
+#else
+			calibrateChannel(AIL);
 			calibrateChannel(ELE);
 			calibrateChannel(THR);
 			calibrateChannel(RUD);
@@ -333,27 +355,8 @@ void processKeyInputs(){
 			calibrateChannel(CH6);
 			calibrateChannel(CH7);
 			calibrateChannel(CH8);
-			*/
-			
-				calibrationUpper[AIL] = 1024;
-			calibrationUpper[ELE] = 1024;
-	calibrationUpper[THR] = 1024;
-	calibrationUpper[RUD] = 1024;
-	calibrationUpper[CH5] = 1024;
-	calibrationUpper[CH6] = 1024;
-	calibrationUpper[CH7] = 1024;
-	calibrationUpper[CH8] = 1024;
-	
 
-	calibrationLower[AIL] = 0;
-	calibrationLower[ELE] = 0;
-	calibrationLower[THR] = 0;
-	calibrationLower[RUD] = 0;
-	calibrationLower[CH5] = 0;
-	calibrationLower[CH6] = 0;
-	calibrationLower[CH7] = 0;
-	calibrationLower[CH8] = 0;
-			
+#endif
 			break;
 	}
 }
@@ -490,8 +493,6 @@ ISR(TIMER1_COMPA_vect){
 };
 
 void loadGlobalSettings(){
-	EEPROM_OK = eeprom_read_word(&_eepromOk);								/** read eeprom status **/
-	SETUP_STATE = eeprom_read_byte(&_setupState);                  /** read setup status **/
 	MIN_SIGNAL_WIDTH = eeprom_read_word(&_minSignalWidth);			/** read signal lengths **/
 	MAX_SIGNAL_WIDTH = eeprom_read_word(&_maxSignalWidth);
 	INTER_CHANNEL_WIDTH = eeprom_read_word(&_interChannelWidth);	
@@ -615,6 +616,7 @@ void reset(){
 	channel = SYNC;
 	OCR1A = micros_to_ticks(ppm[SYNC]);
 };
+
 
 
 
