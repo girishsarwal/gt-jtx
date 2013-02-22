@@ -10,7 +10,7 @@
 .GCCPATH   "C:\WinAVR-20100110"
 .GCCMAKE   AUTO
 .TARGET    "gt-jtx.hex"
-.SOURCE    "gt-jtx.c" "ks0108.c"
+.SOURCE    "gt-jtx.c" "ks0108.c" "ks0108.h"
 
 .TRACE              ; Activate micro trace
 

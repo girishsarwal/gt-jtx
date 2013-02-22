@@ -126,8 +126,8 @@ char* 		pszBuffer = 0;
 uint8_t		currentScreen = 0;
 
 /** Character strings **/
-const char* _strTitle = "#    gt-jtx    #";
-const char* _strVersion = "#   m8-ver-1   #";
+const char* _strTitle = "gt-jtx";
+const char* _strVersion = "m32";
 const char* _strPosVal = "+%d";
 const char* _strNegVal = "%d";
 const char* _strEepromError = "EEPROM MISSING!";
@@ -185,8 +185,11 @@ int main(){
 	setupHardware();
 
 	/** TODO:Splash Screen **/	
-	ks0108GotoXY(15, 10);
-	ks0108Puts(_strTitle);
+	ks0108GotoXY(5, 10);
+//	ks0108Puts(_strTitle);
+	ks0108GotoXY(70, 10);
+//	ks0108Puts(_strVersion);
+//	_delay_ms(2000);
 	/** check EEPROM Sanity **/
 	EEPROM_OK = eeprom_read_word(&_eepromOk);								/** read eeprom status **/
 	
@@ -386,6 +389,15 @@ void processDisplay(){
 	//lcd_home();
 	switch(currentScreen){
 		case HOME:
+			/** Draw Trim Rectanfles **/
+			ks0108DrawRect(0, 10, 4, 50, BLACK);
+         ks0108DrawCircle(38, 32, 22, BLACK);
+         ks0108SetDot(38, 32, BLACK);
+			ks0108DrawRect(70, 10, 4, 50, BLACK);
+			ks0108DrawRect(76, 10, 4, 50, BLACK);
+			ks0108DrawRect(82, 10, 4, 50, BLACK);
+			ks0108DrawRect(88, 10, 4, 50, BLACK);
+
 			//lcd_puts(_strHome1);
 			//lcd_gotoxy(0,1);
 			//lcd_puts(_strHome2);
@@ -622,6 +634,7 @@ void reset(){
 	channel = SYNC;
 	OCR1A = micros_to_ticks(ppm[SYNC]);
 };
+
 
 
 
