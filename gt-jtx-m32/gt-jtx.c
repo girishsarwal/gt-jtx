@@ -389,14 +389,17 @@ void processDisplay(){
 	//lcd_home();
 	switch(currentScreen){
 		case HOME:
-			/** Draw Trim Rectanfles **/
+			/** Draw The basic UI **/
 			ks0108DrawRect(0, 10, 4, 50, BLACK);
-         ks0108DrawCircle(38, 32, 22, BLACK);
+//         ks0108DrawCircle(38, 32, 22, BLACK);
+			ks0108DrawRoundRect(10, 10, 50, 50, 4, BLACK);
          ks0108SetDot(38, 32, BLACK);
-			ks0108DrawRect(70, 10, 4, 50, BLACK);
-			ks0108DrawRect(76, 10, 4, 50, BLACK);
-			ks0108DrawRect(82, 10, 4, 50, BLACK);
-			ks0108DrawRect(88, 10, 4, 50, BLACK);
+			ks0108DrawRect(66, 10, 4, 50, BLACK);
+			ks0108DrawRect(72, 10, 4, 50, BLACK);
+			ks0108DrawRect(78, 10, 4, 50, BLACK);
+			ks0108DrawRect(84, 10, 4, 50, BLACK);
+			ks0108DrawHoriLine(16, 35, 50, BLACK);
+			ks0108DrawVertLine(41, 18, 8, BLACK);
 
 			//lcd_puts(_strHome1);
 			//lcd_gotoxy(0,1);
@@ -634,6 +637,7 @@ void reset(){
 	channel = SYNC;
 	OCR1A = micros_to_ticks(ppm[SYNC]);
 };
+
 
 
 
