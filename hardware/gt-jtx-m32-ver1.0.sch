@@ -7597,6 +7597,7 @@ Source: www.atmel.com .. doc2503.pdf</description>
 <part name="IC1" library="atmel" deviceset="MEGA32-P" device=""/>
 <part name="LCD_CTRL" library="pinhead" deviceset="PINHD-1X10" device=""/>
 <part name="LCD_DATA" library="pinhead" deviceset="PINHD-1X10" device=""/>
+<part name="SPK_SW" library="pinhead" deviceset="PINHD-1X3" device=""/>
 </parts>
 <sheets>
 <sheet>
@@ -7622,8 +7623,9 @@ Source: www.atmel.com .. doc2503.pdf</description>
 <instance part="LED" gate="G$1" x="40.64" y="154.94" rot="R270"/>
 <instance part="ISP" gate="A" x="162.56" y="144.78"/>
 <instance part="IC1" gate="G$1" x="93.98" y="124.46"/>
-<instance part="LCD_CTRL" gate="A" x="127" y="88.9"/>
+<instance part="LCD_CTRL" gate="A" x="134.62" y="88.9"/>
 <instance part="LCD_DATA" gate="A" x="147.32" y="111.76"/>
+<instance part="SPK_SW" gate="A" x="106.68" y="71.12" rot="R180"/>
 </instances>
 <busses>
 </busses>
@@ -7679,7 +7681,7 @@ Source: www.atmel.com .. doc2503.pdf</description>
 <wire x1="205.74" y1="53.34" x2="205.74" y2="106.68" width="0.1524" layer="91"/>
 <pinref part="LCD_CTRL" gate="A" pin="10"/>
 <wire x1="205.74" y1="106.68" x2="205.74" y2="142.24" width="0.1524" layer="91"/>
-<wire x1="124.46" y1="76.2" x2="134.62" y2="76.2" width="0.1524" layer="91"/>
+<wire x1="132.08" y1="76.2" x2="134.62" y2="76.2" width="0.1524" layer="91"/>
 <wire x1="134.62" y1="76.2" x2="134.62" y2="58.42" width="0.1524" layer="91"/>
 <junction x="134.62" y="58.42"/>
 <pinref part="VR1" gate="G$1" pin="A"/>
@@ -7690,7 +7692,7 @@ Source: www.atmel.com .. doc2503.pdf</description>
 <junction x="160.02" y="58.42"/>
 </segment>
 </net>
-<net name="GND" class="0">
+<net name="SPK_SW" class="0">
 <segment>
 <wire x1="73.66" y1="144.78" x2="48.26" y2="144.78" width="0.1524" layer="91"/>
 <wire x1="48.26" y1="144.78" x2="48.26" y2="137.16" width="0.1524" layer="91"/>
@@ -7699,7 +7701,8 @@ Source: www.atmel.com .. doc2503.pdf</description>
 <wire x1="35.56" y1="165.1" x2="35.56" y2="154.94" width="0.1524" layer="91"/>
 <wire x1="35.56" y1="154.94" x2="35.56" y2="60.96" width="0.1524" layer="91"/>
 <wire x1="35.56" y1="60.96" x2="48.26" y2="60.96" width="0.1524" layer="91"/>
-<wire x1="48.26" y1="60.96" x2="137.16" y2="60.96" width="0.1524" layer="91"/>
+<wire x1="48.26" y1="60.96" x2="121.92" y2="60.96" width="0.1524" layer="91"/>
+<wire x1="121.92" y1="60.96" x2="137.16" y2="60.96" width="0.1524" layer="91"/>
 <wire x1="137.16" y1="60.96" x2="162.56" y2="60.96" width="0.1524" layer="91"/>
 <wire x1="162.56" y1="60.96" x2="175.26" y2="60.96" width="0.1524" layer="91"/>
 <wire x1="48.26" y1="137.16" x2="48.26" y2="60.96" width="0.1524" layer="91"/>
@@ -7728,7 +7731,7 @@ Source: www.atmel.com .. doc2503.pdf</description>
 <wire x1="220.98" y1="60.96" x2="220.98" y2="106.68" width="0.1524" layer="91"/>
 <pinref part="LCD_CTRL" gate="A" pin="9"/>
 <wire x1="220.98" y1="106.68" x2="220.98" y2="147.32" width="0.1524" layer="91"/>
-<wire x1="124.46" y1="78.74" x2="137.16" y2="78.74" width="0.1524" layer="91"/>
+<wire x1="132.08" y1="78.74" x2="137.16" y2="78.74" width="0.1524" layer="91"/>
 <wire x1="137.16" y1="78.74" x2="137.16" y2="60.96" width="0.1524" layer="91"/>
 <junction x="137.16" y="60.96"/>
 <pinref part="VR1" gate="G$1" pin="E"/>
@@ -7737,6 +7740,10 @@ Source: www.atmel.com .. doc2503.pdf</description>
 <wire x1="144.78" y1="101.6" x2="162.56" y2="101.6" width="0.1524" layer="91"/>
 <wire x1="162.56" y1="101.6" x2="162.56" y2="60.96" width="0.1524" layer="91"/>
 <junction x="162.56" y="60.96"/>
+<pinref part="SPK_SW" gate="A" pin="2"/>
+<wire x1="109.22" y1="71.12" x2="121.92" y2="71.12" width="0.1524" layer="91"/>
+<wire x1="121.92" y1="71.12" x2="121.92" y2="60.96" width="0.1524" layer="91"/>
+<junction x="121.92" y="60.96"/>
 </segment>
 </net>
 <net name="RST" class="0">
@@ -7753,7 +7760,7 @@ Source: www.atmel.com .. doc2503.pdf</description>
 <pinref part="IC1" gate="G$1" pin="RESET"/>
 <junction x="73.66" y="167.64"/>
 <pinref part="LCD_CTRL" gate="A" pin="1"/>
-<wire x1="124.46" y1="99.06" x2="137.16" y2="99.06" width="0.1524" layer="91"/>
+<wire x1="132.08" y1="99.06" x2="137.16" y2="99.06" width="0.1524" layer="91"/>
 <wire x1="137.16" y1="99.06" x2="137.16" y2="88.9" width="0.1524" layer="91"/>
 <wire x1="137.16" y1="88.9" x2="152.4" y2="88.9" width="0.1524" layer="91"/>
 <wire x1="152.4" y1="88.9" x2="152.4" y2="152.4" width="0.1524" layer="91"/>
@@ -7957,41 +7964,41 @@ Source: www.atmel.com .. doc2503.pdf</description>
 <segment>
 <pinref part="IC1" gate="G$1" pin="(RXD)PD0"/>
 <pinref part="LCD_CTRL" gate="A" pin="8"/>
-<wire x1="114.3" y1="81.28" x2="124.46" y2="81.28" width="0.1524" layer="91"/>
+<wire x1="114.3" y1="81.28" x2="132.08" y2="81.28" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="RW" class="0">
 <segment>
 <pinref part="IC1" gate="G$1" pin="(TXD)PD1"/>
 <pinref part="LCD_CTRL" gate="A" pin="7"/>
-<wire x1="114.3" y1="83.82" x2="124.46" y2="83.82" width="0.1524" layer="91"/>
+<wire x1="114.3" y1="83.82" x2="132.08" y2="83.82" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="E" class="0">
 <segment>
 <pinref part="IC1" gate="G$1" pin="(INT0)PD2"/>
 <pinref part="LCD_CTRL" gate="A" pin="6"/>
-<wire x1="114.3" y1="86.36" x2="124.46" y2="86.36" width="0.1524" layer="91"/>
+<wire x1="114.3" y1="86.36" x2="132.08" y2="86.36" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="CS1" class="0">
 <segment>
 <pinref part="IC1" gate="G$1" pin="(INT1)PD3"/>
 <pinref part="LCD_CTRL" gate="A" pin="5"/>
-<wire x1="114.3" y1="88.9" x2="124.46" y2="88.9" width="0.1524" layer="91"/>
+<wire x1="114.3" y1="88.9" x2="132.08" y2="88.9" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="CS2" class="0">
 <segment>
 <pinref part="IC1" gate="G$1" pin="(OC1B)PD4"/>
 <pinref part="LCD_CTRL" gate="A" pin="4"/>
-<wire x1="114.3" y1="91.44" x2="124.46" y2="91.44" width="0.1524" layer="91"/>
+<wire x1="114.3" y1="91.44" x2="132.08" y2="91.44" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="CONTRA_ADJ" class="0">
 <segment>
 <pinref part="LCD_CTRL" gate="A" pin="2"/>
-<wire x1="124.46" y1="96.52" x2="134.62" y2="96.52" width="0.1524" layer="91"/>
+<wire x1="132.08" y1="96.52" x2="134.62" y2="96.52" width="0.1524" layer="91"/>
 <wire x1="134.62" y1="96.52" x2="134.62" y2="93.98" width="0.1524" layer="91"/>
 <wire x1="134.62" y1="93.98" x2="213.36" y2="93.98" width="0.1524" layer="91"/>
 <pinref part="VR1" gate="G$1" pin="S"/>
@@ -8000,11 +8007,29 @@ Source: www.atmel.com .. doc2503.pdf</description>
 </net>
 <net name="N$15" class="0">
 <segment>
-<pinref part="IC1" gate="G$1" pin="(OC2)PD7"/>
-<wire x1="114.3" y1="99.06" x2="119.38" y2="99.06" width="0.1524" layer="91"/>
-<wire x1="119.38" y1="99.06" x2="119.38" y2="63.5" width="0.1524" layer="91"/>
 <pinref part="PPM" gate="A" pin="1"/>
-<wire x1="119.38" y1="63.5" x2="175.26" y2="63.5" width="0.1524" layer="91"/>
+<wire x1="116.84" y1="93.98" x2="116.84" y2="63.5" width="0.1524" layer="91"/>
+<wire x1="116.84" y1="63.5" x2="175.26" y2="63.5" width="0.1524" layer="91"/>
+<pinref part="IC1" gate="G$1" pin="(OC1A)PD5"/>
+<wire x1="114.3" y1="93.98" x2="116.84" y2="93.98" width="0.1524" layer="91"/>
+</segment>
+</net>
+<net name="N$5" class="0">
+<segment>
+<pinref part="SPK_SW" gate="A" pin="1"/>
+<wire x1="109.22" y1="68.58" x2="124.46" y2="68.58" width="0.1524" layer="91"/>
+<wire x1="124.46" y1="68.58" x2="124.46" y2="96.52" width="0.1524" layer="91"/>
+<pinref part="IC1" gate="G$1" pin="(ICP)PD6"/>
+<wire x1="124.46" y1="96.52" x2="114.3" y2="96.52" width="0.1524" layer="91"/>
+</segment>
+</net>
+<net name="N$6" class="0">
+<segment>
+<pinref part="SPK_SW" gate="A" pin="3"/>
+<wire x1="109.22" y1="73.66" x2="121.92" y2="73.66" width="0.1524" layer="91"/>
+<wire x1="121.92" y1="73.66" x2="121.92" y2="99.06" width="0.1524" layer="91"/>
+<pinref part="IC1" gate="G$1" pin="(OC2)PD7"/>
+<wire x1="121.92" y1="99.06" x2="114.3" y2="99.06" width="0.1524" layer="91"/>
 </segment>
 </net>
 </nets>
