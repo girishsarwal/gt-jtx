@@ -75,6 +75,7 @@ void ks0108FillRect(uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint8_t
 void ks0108InvertRect(uint8_t x, uint8_t y, uint8_t width, uint8_t height);
 void ks0108SetInverted(uint8_t invert);
 void ks0108SetDot(uint8_t x, uint8_t y, uint8_t color);
+void ks0108DrawCirc(uint8_t x, uint8_t y, uint8_t rad, uint8_t color);
 
 #define ks0108DrawVertLine(x, y, length, color) {ks0108FillRect(x, y, 0, length, color);}
 #define ks0108DrawHoriLine(x, y, length, color) {ks0108FillRect(x, y, length, 0, color);}
@@ -99,4 +100,5 @@ void ks0108WriteCommand(uint8_t cmd, uint8_t chip);
 void ks0108WriteData(uint8_t data);
 
 #endif
+
 

@@ -19,7 +19,7 @@
 #include <avr/interrupt.h>
 #include <math.h>
 #include "ks0108.h"
-#include "arial_bold_14.h"
+#include "arial_10.h"
 
 
 /** channel mapping to named items **/
@@ -35,17 +35,13 @@
 #define SYNC	8
 
 #define MAX_CHANNEL CH8
-/** Screens -
-0 - home screen,
-1 - AUX1 - channel settings
-MAX_CHANNEL + 1 - Global Settings
-MAX_CHANNEL + 2 - Calibration
-**/
-#define HOME				100
-#define SETTINGS1   		101
-#define SETTINGS2   		102
-#define SAVE_SETTINGS 	103
-#define CALIBRATION 		104
+#define NUM_CHANNELS MAX_CHANNEL + 1
+
+#define HOME				SYNC
+#define SETTINGS1   		SYNC + 1
+#define SETTINGS2   		SYNC + 2
+#define SAVE_SETTINGS 	SYNC + 3
+#define CALIBRATION 		SYNC + 4
 
 
 
@@ -99,10 +95,10 @@ uint16_t 	EEMEM _minSignalWidth = 700;
 uint16_t 	EEMEM _maxSignalWidth = 1700;
 uint16_t 	EEMEM _interChannelWidth = 300;
 uint16_t 	EEMEM _frameWidth = 22500;
-uint8_t 		EEMEM _trims[MAX_CHANNEL + 1] = {100, 100, 100, 100, 100, 100, 100, 100};
+uint8_t 		EEMEM _trims[NUM_CHANNELS] = {100, 100, 100, 100, 100, 100, 100, 100};
 uint8_t 		EEMEM _reverse = 0x00;
-uint16_t		EEMEM _calibrationUpper[MAX_CHANNEL + 1];
-uint16_t		EEMEM _calibrationLower[MAX_CHANNEL + 1];
+uint16_t		EEMEM _calibrationUpper[NUM_CHANNELS];
+uint16_t		EEMEM _calibrationLower[NUM_CHANNELS];
 
 uint16_t 	EEPROM_OK;
 uint8_t 		SETUP_STATE;
@@ -110,12 +106,12 @@ uint16_t 	MAX_SIGNAL_WIDTH;
 uint16_t 	MIN_SIGNAL_WIDTH;
 uint16_t 	INTER_CHANNEL_WIDTH;
 uint16_t 	FRAME_WIDTH;
-uint8_t		trims[MAX_CHANNEL + 1];				/** max channels for trims. Although atm only first 4 are useful,
+uint8_t		trims[NUM_CHANNELS];				/** max channels for trims. Although atm only first 4 are useful,
 															trims will always range from 0 to 200 points **/
 uint8_t		reverse;									/**reverse settings - 0 means not reversed, 1 means channel is reversed 0bXXX00010**/
-int8_t 		percent[MAX_CHANNEL + 1];
-uint16_t 	calibrationUpper[MAX_CHANNEL + 1];		/** we only need calibration for 1-4 on the sticks **/
-uint16_t 	calibrationLower[MAX_CHANNEL + 1];
+int8_t 		percent[NUM_CHANNELS];
+uint16_t 	calibrationUpper[NUM_CHANNELS];		
+uint16_t 	calibrationLower[NUM_CHANNELS];
 
 uint16_t 	SIGNAL_TRAVERSAL;
 uint16_t 	MID_SIGNAL_WIDTH;
@@ -126,6 +122,7 @@ char* 		pszBuffer = 0;
 uint8_t		currentScreen = 0;
 
 /** Character strings **/
+char* _pilotName = "Girish Sarwal";
 const char* _strTitle = "gt-jtx";
 const char* _strVersion = "m32";
 const char* _strPosVal = "+%d";
@@ -134,11 +131,14 @@ const char* _strEepromError = "EEPROM MISSING!";
 const char* _strLoadDefEeprom = "Load Def. EEPROM";
 const char* _strHome1 = "A:     E:     FL";
 const char* _strHome2 = "T:     R:       ";
-const char* _strAil = "AIL";
-const char* _strEle = "ELE";
-const char* _strThr = "THR";
-const char* _strRud = "RUD";
-const char* _strFlaps = "FLAPS";
+const char* _strAil = "Aileron Settings (CH1)";
+const char* _strEle = "Elevator Settings (CH2)";
+const char* _strThr = "Throttle Settings (CH3)";
+const char* _strRud = "Rudder Settings (CH4)";
+const char* _strCh5 = "CH5 Settings";
+const char* _strCh6 = "CH6 Settings";
+const char* _strCh7 = "CH7 Settings";
+const char* _strCh8 = "CH8 Settings";
 const char* _strMs ="ms";
 const char* _strTrim = "Trim";
 const char* _strState = "St";
@@ -149,7 +149,9 @@ const char* _strGlobalSettings1Title = "Sig. Width (ms)";
 const char* _strGlobalSettings2Title = "IntCh. Frm. (us)";
 const char* _strSaveSettings = "SAVE SETTINGS?";
 const char* _strMenuToSave = "  Menu to save  ";
-const char* _strMoveAetrMinMax = "Mov AETR Min&Max";
+const char* _strCalibrationTitle = "CALIBRATION";
+const char* _strMoveSticksPots = "Move all sticks and pots to limit";
+const char* _strFlipSwitches =   "and flip all switches off and on.";
 const char* _strSeparator = " ";
 const char* _strMin = "Min";
 const char* _strMax = "Max";
@@ -177,6 +179,8 @@ void saveReverse();
 
 #define STARTADC ADCSRA |= (1<<ADEN) | (1<<ADPS0) | (1<<ADPS1) | (1<<ADPS0) | (1<<ADIE);
 
+uint16_t _dirty = 0xFFFF;
+
 static int channel = SYNC;
 
 int main(){
@@ -185,11 +189,13 @@ int main(){
 	setupHardware();
 
 	/** TODO:Splash Screen **/	
-	ks0108GotoXY(5, 10);
+//	ks0108GotoXY(5, 10);
 //	ks0108Puts(_strTitle);
-	ks0108GotoXY(70, 10);
+//	ks0108GotoXY(70, 10);
 //	ks0108Puts(_strVersion);
 //	_delay_ms(2000);
+
+//	ks0108DrawCirc(64, 32, 30, BLACK);
 	/** check EEPROM Sanity **/
 	EEPROM_OK = eeprom_read_word(&_eepromOk);								/** read eeprom status **/
 	
@@ -384,23 +390,32 @@ void showDigitalChannelSettings(){
 	//lcd_gotoxy(10, 1); lcd_puts((reverse & mask)== mask ? _strYes: _strNo);
 	sprintf(pszBuffer, _strNegVal, ppm[currentScreen]);//;lcd_gotoxy(12, 1); lcd_puts(pszBuffer);
 }
+
+
 void processDisplay(){
 	//lcd_clrscr();
 	//lcd_home();
+	ks0108ClearScreen();
 	switch(currentScreen){
 		case HOME:
 			/** Draw The basic UI **/
-			ks0108DrawRect(0, 10, 4, 50, BLACK);
-//         ks0108DrawCircle(38, 32, 22, BLACK);
-			ks0108DrawRoundRect(10, 10, 50, 50, 4, BLACK);
-         ks0108SetDot(38, 32, BLACK);
-			ks0108DrawRect(66, 10, 4, 50, BLACK);
-			ks0108DrawRect(72, 10, 4, 50, BLACK);
-			ks0108DrawRect(78, 10, 4, 50, BLACK);
-			ks0108DrawRect(84, 10, 4, 50, BLACK);
-			ks0108DrawHoriLine(16, 35, 50, BLACK);
-			ks0108DrawVertLine(41, 18, 8, BLACK);
+			//ks0108Puts(_pilotName);
+			ks0108DrawRect(3, 0, 57, 2, BLACK);
+			ks0108DrawRect(3, 61, 57, 2, BLACK);
+			ks0108DrawRect(0, 3, 2, 57, BLACK);
+			ks0108DrawRect(61, 3, 2, 57, BLACK);
+			ks0108DrawHoriLine(3, 13, 57, BLACK);
+			ks0108DrawRect (30, 5, 2, 6, BLACK);	/** Rudder **/			
+			ks0108FillRect(28, 35, 6, 6, BLACK);   /**Elevator +_ Aileron**/
+//			ks0108DrawRect (65, 4, 2, 57, BLACK);
 
+//			ks0108DrawRect(54, 11, 10, 52, BLACK);
+//			ks0108DrawRect(66, 10, 10, 52, BLACK);
+//			ks0108DrawRect(78, 10, 10, 52, BLACK);
+//			ks0108DrawRect(90, 10, 10, 52, BLACK);
+//			ks0108DrawRect(102, 10, 10, 52, BLACK);
+//			ks0108DrawHoriLine(16, 35, 50, BLACK);
+//			ks0108DrawVertLine(41, 18, 8, BLACK);
 			//lcd_puts(_strHome1);
 			//lcd_gotoxy(0,1);
 			//lcd_puts(_strHome2);
@@ -413,6 +428,7 @@ void processDisplay(){
 			_delay_ms(100);			
 			return;
 		case AIL:			
+			ks0108Puts(_strAil);
 			//lcd_puts(_strAil);showAnalogChannelSettings();
 			break;
 		case ELE:
@@ -455,9 +471,17 @@ void processDisplay(){
 			//lcd_puts(_strMenuToSave);
 			return;
 		case CALIBRATION:
-			//lcd_puts(_strMoveAetrMinMax);
-			//lcd_gotoxy(0, 1);
-			//lcd_puts(_strMenuToSave);
+			ks0108GotoXY(0, 0);
+			ks0108Puts(_strCalibrationTitle);
+			ks0108GotoXY(0, 20);
+			ks0108Puts(_strMoveSticksPots);
+			ks0108GotoXY(0, 30);
+			ks0108Puts(_strFlipSwitches);
+			ks0108GotoXY (0, 40);
+			ks0108Puts(_strMenuToSave);
+//			lcd_puts(_strMoveAetrMinMax);
+//			lcd_gotoxy(0, 1);
+//			lcd_puts(_strMenuToSave);
 			return;
      	default:
 			currentScreen = AIL;	/**Reset to home screen, if we don't know where we are **/
@@ -500,7 +524,7 @@ uint16_t micros_to_ticks(uint16_t value){
 ISR(TIMER1_COMPA_vect){
 	TIMSK &= ~(1 << OCIE1A);
 	if((PIN_PPM & (1 << SIG_PPM)) == (1 << SIG_PPM)){		//If the actual pin is high, we need to set OCR1A to the complementary delay
-		if(++channel > (MAX_CHANNEL + 1)){
+		if(++channel > (NUM_CHANNELS)){
 			channel = 0;
 		}
 		OCR1A = micros_to_ticks(ppm[channel]);
@@ -521,7 +545,7 @@ void loadGlobalSettings(){
 
 void loadParameters(){
 	MID_SIGNAL_WIDTH = ((MAX_SIGNAL_WIDTH + MIN_SIGNAL_WIDTH)/2) + TRIM_CENTER;
-	SYNC_SIGNAL_WIDTH = (FRAME_WIDTH - (MAX_CHANNEL * (MID_SIGNAL_WIDTH + INTER_CHANNEL_WIDTH))); /**whatever is left **/
+	SYNC_SIGNAL_WIDTH = (FRAME_WIDTH - (NUM_CHANNELS * (MID_SIGNAL_WIDTH + INTER_CHANNEL_WIDTH))); /**whatever is left **/
 	SIGNAL_TRAVERSAL = MAX_SIGNAL_WIDTH - MIN_SIGNAL_WIDTH;
 };
 
@@ -554,13 +578,13 @@ void loadDefaultCalibration(){
 }
 
 void loadCalibration(){
-	eeprom_read_block((void*)&calibrationUpper, (const void*)_calibrationUpper, 2 * MAX_CHANNEL);	
-	eeprom_read_block((void*)&calibrationLower, (const void*)_calibrationLower, 2 * MAX_CHANNEL);	
+	eeprom_read_block((void*)&calibrationUpper, (const void*)_calibrationUpper, 2 * (NUM_CHANNELS));	
+	eeprom_read_block((void*)&calibrationLower, (const void*)_calibrationLower, 2 * (NUM_CHANNELS));	
 };
 
 void saveCalibration(){
-	eeprom_write_block((void*)&calibrationUpper, (const void*)_calibrationUpper, 2 * MAX_CHANNEL);
-	eeprom_write_block((void*)&calibrationLower, (const void*)_calibrationLower, 2 * MAX_CHANNEL);
+	eeprom_write_block((void*)&calibrationUpper, (const void*)_calibrationUpper, 2 * (NUM_CHANNELS));
+	eeprom_write_block((void*)&calibrationLower, (const void*)_calibrationLower, 2 * (NUM_CHANNELS));
 	SETUP_STATE |= (1<<0) | (1<<1);
 	eeprom_write_byte(&_setupState, SETUP_STATE);		/**write back byte to the calibration**/
 };
@@ -568,7 +592,7 @@ void saveCalibration(){
 void setupHardware(){
 	/** setup lcd **/
 	ks0108Init(0);
-	ks0108SelectFont(Arial_Bold_14, ks0108ReadFontData, BLACK);
+	ks0108SelectFont(Arial_10, ks0108ReadFontData, BLACK);
 	/** Setup I/O **/
 	/** Analog Inputs**/
 	DDR_ANALOG = 0x00;						
@@ -637,6 +661,7 @@ void reset(){
 	channel = SYNC;
 	OCR1A = micros_to_ticks(ppm[SYNC]);
 };
+
 
 
 

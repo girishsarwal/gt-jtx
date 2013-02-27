@@ -590,3 +590,18 @@ void ks0108WriteData(uint8_t data) {
 	LCD_DATA_OUT = 0x00;
 }
 
+void ks0108DrawCirc(uint8_t x, uint8_t y, uint8_t rad, uint8_t color){
+	uint8_t x1 = 0;
+	uint8_t y1 = 0;
+	float angle = 0;
+	while(angle < 6.28)
+	{
+		x1 = cos(angle) * rad;
+		y1 = sin(angle) * rad;
+		ks0108SetDot(x + x1, y + y1, BLACK);
+		angle = angle + 0.1f;
+	}
+
+}
+
+
