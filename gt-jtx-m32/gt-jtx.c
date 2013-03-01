@@ -82,7 +82,8 @@
 #define SIG_SPEAK		6
 #define SIG_MENU_KEY 7
 
-
+#define TRIM_TRACK_WIDTH 2
+#define CHANNEL_TRACK_WIDTH 7
 
 
 #define MAGIC_NUMBER 29543              		
@@ -90,15 +91,15 @@
 
 /** EEProm Definitions **/
 uint16_t 	EEMEM _eepromOk = MAGIC_NUMBER;			 	
-uint8_t 		EEMEM _setupState = 0;					/** Default Setup Status: use to check first time setups **/
+uint8_t 		EEMEM _setupState = 3;					/** Default Setup Status: use to check first time setups **/
 uint16_t 	EEMEM _minSignalWidth = 700;
 uint16_t 	EEMEM _maxSignalWidth = 1700;
 uint16_t 	EEMEM _interChannelWidth = 300;
 uint16_t 	EEMEM _frameWidth = 22500;
 uint8_t 		EEMEM _trims[NUM_CHANNELS] = {100, 100, 100, 100, 100, 100, 100, 100};
 uint8_t 		EEMEM _reverse = 0x00;
-uint16_t		EEMEM _calibrationUpper[NUM_CHANNELS];
-uint16_t		EEMEM _calibrationLower[NUM_CHANNELS];
+uint16_t		EEMEM _calibrationUpper[NUM_CHANNELS] = {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024};
+uint16_t		EEMEM _calibrationLower[NUM_CHANNELS] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 uint16_t 	EEPROM_OK;
 uint8_t 		SETUP_STATE;
@@ -170,10 +171,15 @@ uint8_t getKeyPressed(uint8_t port, uint8_t key);
 void processKeyInputs();
 void processDisplay();
 void loadParameters();
+
+void loadPreCalibration();
+void loadCaibration();
 void calibrateChannel(uint8_t channel);
+void saveCalibration();
+
 void loadGlobalSettings();
 void saveGlobalSettings();
-void saveCalibration();
+
 void checkNavigation();
 void saveReverse();
 
@@ -212,7 +218,7 @@ int main(){
    SETUP_STATE = eeprom_read_byte(&_setupState);                  /** read setup status **/
 	if(!((SETUP_STATE & 0x01 == 0x01)               /** check for Upper Calibration Limits **/
 		|| ((SETUP_STATE & 0x02) ==0x02)) ) {			/** check for Lower Calibration Limits **/
-		loadDefaultCalibration();								/** Load Default Calibration Settings **/
+		loadPreCalibration();								/** Load Default Calibration Settings **/
 		currentScreen = CALIBRATION;							/** something is not set,
 																		we will start with the calibration screen **/
 	}
@@ -339,27 +345,6 @@ void processKeyInputs(){
 		case CALIBRATION:
 			checkNavigation();
 			if(getKeyPressed(PIN_MENU, SIG_MENU_KEY)) {_delay_ms(250); saveCalibration(); currentScreen = HOME; return;}   /** menu pressed for 250 ms**/
-
-#ifdef DEBUG			
-			calibrationUpper[AIL] = 1024;
-			calibrationUpper[ELE] = 1024;
-			calibrationUpper[THR] = 1024;
-			calibrationUpper[RUD] = 1024;
-			calibrationUpper[CH5] = 1024;
-			calibrationUpper[CH6] = 1024;
-			calibrationUpper[CH7] = 1024;
-			calibrationUpper[CH8] = 1024;
-	
-
-			calibrationLower[AIL] = 0;
-			calibrationLower[ELE] = 0;
-			calibrationLower[THR] = 0;
-			calibrationLower[RUD] = 0;
-			calibrationLower[CH5] = 0;
-			calibrationLower[CH6] = 0;
-			calibrationLower[CH7] = 0;
-			calibrationLower[CH8] = 0;
-#else
 			calibrateChannel(AIL);
 			calibrateChannel(ELE);
 			calibrateChannel(THR);
@@ -368,8 +353,6 @@ void processKeyInputs(){
 			calibrateChannel(CH6);
 			calibrateChannel(CH7);
 			calibrateChannel(CH8);
-
-#endif
 			break;
 	}
 }
@@ -391,23 +374,32 @@ void showDigitalChannelSettings(){
 	sprintf(pszBuffer, _strNegVal, ppm[currentScreen]);//;lcd_gotoxy(12, 1); lcd_puts(pszBuffer);
 }
 
+uint8_t displayChannelBar(uint8_t ch, uint8_t x){
+	volatile uint8_t barValue = ((percent[ch] + 100) * 0.15); //0.15 = 30/200
+	ks0108DrawRect(x, 19, TRIM_TRACK_WIDTH, 30, BLACK);
+	ks0108FillRect(x + TRIM_TRACK_WIDTH + 1, 19 + barValue, CHANNEL_TRACK_WIDTH, 30 - barValue, BLACK);
+}
 
 void processDisplay(){
-	//lcd_clrscr();
-	//lcd_home();
 	ks0108ClearScreen();
 	switch(currentScreen){
 		case HOME:
 			/** Draw The basic UI **/
-			//ks0108Puts(_pilotName);
-			ks0108DrawRect(3, 0, 57, 2, BLACK);
-			ks0108DrawRect(3, 61, 57, 2, BLACK);
-			ks0108DrawRect(0, 3, 2, 57, BLACK);
-			ks0108DrawRect(61, 3, 2, 57, BLACK);
-			ks0108DrawHoriLine(3, 13, 57, BLACK);
-			ks0108DrawRect (30, 5, 2, 6, BLACK);	/** Rudder **/			
-			ks0108FillRect(28, 35, 6, 6, BLACK);   /**Elevator +_ Aileron**/
-//			ks0108DrawRect (65, 4, 2, 57, BLACK);
+			ks0108GotoXY(0, 10);
+//			ks0108Puts("  A        E        T        R        5        6        7        8");
+			
+         displayChannelBar(AIL, 1);
+			displayChannelBar(ELE, 15);	
+			displayChannelBar(THR, 29);	
+			displayChannelBar(RUD, 43);	
+			displayChannelBar(CH5, 57);	
+			displayChannelBar(CH6, 71);	
+			displayChannelBar(CH7, 85);	
+			displayChannelBar(CH8, 99);									
+
+			
+//			ks0108FillRect(77, 3, 2, 57, BLACK);
+//			ks0108FillRect(80, 3, 2, 57, BLACK);
 
 //			ks0108DrawRect(54, 11, 10, 52, BLACK);
 //			ks0108DrawRect(66, 10, 10, 52, BLACK);
@@ -416,9 +408,6 @@ void processDisplay(){
 //			ks0108DrawRect(102, 10, 10, 52, BLACK);
 //			ks0108DrawHoriLine(16, 35, 50, BLACK);
 //			ks0108DrawVertLine(41, 18, 8, BLACK);
-			//lcd_puts(_strHome1);
-			//lcd_gotoxy(0,1);
-			//lcd_puts(_strHome2);
 			sprintf(pszBuffer, percent[AIL] >= 0 ?_strPosVal:_strNegVal, percent[AIL]); //lcd_gotoxy(2, 0); lcd_puts(pszBuffer);
 			sprintf(pszBuffer, percent[ELE] >= 0 ?_strPosVal:_strNegVal, percent[ELE]); //lcd_gotoxy(9, 0); lcd_puts(pszBuffer);
 			sprintf(pszBuffer, percent[THR] >= 0 ?_strPosVal:_strNegVal, percent[THR]); //lcd_gotoxy(2, 1); lcd_puts(pszBuffer);
@@ -555,7 +544,7 @@ void saveGlobalSettings(){
 	eeprom_write_word(&_interChannelWidth, INTER_CHANNEL_WIDTH);
 	eeprom_write_word(&_frameWidth, FRAME_WIDTH);
 };
-void loadDefaultCalibration(){
+void loadPreCalibration(){
 	/** load the default settings **/
 	calibrationUpper[AIL] = 0;
 	calibrationUpper[ELE] = 0;
@@ -632,6 +621,7 @@ void setupHardware(){
 	ADMUX |= (1<<REFS0);				
 	ADCSRA |= (1<<ADEN); 									/** enable the ADC **/
 	ADCSRA|= (1<<ADPS2) | (1<<ADPS1) | (1<<ADPS0);	/**F_CPU/64 Prescalar **/
+
 };
 
 
@@ -661,6 +651,7 @@ void reset(){
 	channel = SYNC;
 	OCR1A = micros_to_ticks(ppm[SYNC]);
 };
+
 
 
 
