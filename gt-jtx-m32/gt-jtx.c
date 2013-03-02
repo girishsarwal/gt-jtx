@@ -19,7 +19,7 @@
 #include <avr/interrupt.h>
 #include <math.h>
 #include "ks0108.h"
-#include "arial_10.h"
+#include "courier_8.h"
 
 
 /** channel mapping to named items **/
@@ -158,30 +158,34 @@ const char* _strMin = "Min";
 const char* _strMax = "Max";
 
 /** Function Declaratons **/
-void reset();
-void setupHardware();
-void getAnalogChannelValue(uint8_t);
-void getDigitalChannelValue(uint8_t);
 uint16_t readAnalog(uint8_t);
 uint16_t micros_to_ticks(uint16_t);
-void loadModelSettings();
+uint8_t getKeyPressed(uint8_t port, uint8_t key);
+
+void reset();
+void setupHardware();
+void readChannelValue(uint8_t);
+void loadParameters();
+
 void incTrim(uint8_t channel);
 void decTrim(uint8_t channel);
-uint8_t getKeyPressed(uint8_t port, uint8_t key);
+
 void processKeyInputs();
+void checkNavigation();
+
 void processDisplay();
-void loadParameters();
+void displayChannelSettings();
+
+void loadModelSettings();
+void loadGlobalSettings();
+void saveGlobalSettings();
 
 void loadPreCalibration();
 void loadCaibration();
 void calibrateChannel(uint8_t channel);
 void saveCalibration();
-
-void loadGlobalSettings();
-void saveGlobalSettings();
-
-void checkNavigation();
 void saveReverse();
+
 
 #define STARTADC ADCSRA |= (1<<ADEN) | (1<<ADPS0) | (1<<ADPS1) | (1<<ADPS0) | (1<<ADIE);
 
@@ -241,15 +245,15 @@ int main(){
 	while(1){
 		/**read pot inputs first of all
 		TODO: Do this on a timer and ISR**/
-		getAnalogChannelValue(AIL);
-		getAnalogChannelValue(ELE);
-		getAnalogChannelValue(THR);
-		getAnalogChannelValue(RUD);
+		readChannelValue(AIL);
+		readChannelValue(ELE);
+		readChannelValue(THR);
+		readChannelValue(RUD);
 		
-		getAnalogChannelValue(CH5);
-      getAnalogChannelValue(CH6);
-      getAnalogChannelValue(CH7);
-      getAnalogChannelValue(CH8);
+		readChannelValue(CH5);
+      readChannelValue(CH6);
+      readChannelValue(CH7);
+      readChannelValue(CH8);
 
 		processKeyInputs();
 		processDisplay();
@@ -356,7 +360,7 @@ void processKeyInputs(){
 			break;
 	}
 }
-void showAnalogChannelSettings(){
+void displayChannelSettings(){
 	//lcd_puts(_strSeparator);lcd_puts(_strTrim);lcd_puts(_strSeparator);lcd_puts(_strSeparator);lcd_puts(_strReverse);lcd_puts(_strSeparator);lcd_puts(_strMs);
 	sprintf(pszBuffer, percent[currentScreen] >= 0?_strPosVal:_strNegVal, percent[currentScreen]);//lcd_gotoxy(0, 1);lcd_puts(pszBuffer);
 	sprintf(pszBuffer, _strNegVal, trims[currentScreen - 1]);//lcd_gotoxy(5, 1); lcd_puts(pszBuffer);
@@ -364,20 +368,14 @@ void showAnalogChannelSettings(){
 	//lcd_gotoxy(10, 1); lcd_puts((reverse & mask) == mask ? _strYes: _strNo);
 	sprintf(pszBuffer, _strNegVal, ppm[currentScreen]);//lcd_gotoxy(12, 1); lcd_puts(pszBuffer);		
 }
-void showDigitalChannelSettings(){
-	/**TODO: SHOW DIGITAL CHANNEL SETTING **/
-	//lcd_puts(_strSeparator);lcd_puts(_strState);lcd_puts(_strSeparator);lcd_puts(_strSeparator);lcd_puts(_strReverse);lcd_puts(_strSeparator);lcd_puts(_strMs);
-	sprintf(pszBuffer, percent[currentScreen] >= 0?_strPosVal:_strNegVal, percent[currentScreen]);//lcd_gotoxy(0, 1);lcd_puts(pszBuffer);
-	//lcd_gotoxy(6, 1); lcd_puts(percent[currentScreen] >= 0? _strYes: _strNo);
-	uint8_t mask = (1 << (currentScreen - 1));
-	//lcd_gotoxy(10, 1); lcd_puts((reverse & mask)== mask ? _strYes: _strNo);
-	sprintf(pszBuffer, _strNegVal, ppm[currentScreen]);//;lcd_gotoxy(12, 1); lcd_puts(pszBuffer);
-}
 
 uint8_t displayChannelBar(uint8_t ch, uint8_t x){
-	volatile uint8_t barValue = ((percent[ch] + 100) * 0.15); //0.15 = 30/200
+	volatile uint8_t barValue = 0;
 	ks0108DrawRect(x, 19, TRIM_TRACK_WIDTH, 30, BLACK);
+	barValue = (percent[ch] - 100) * -0.15;
 	ks0108FillRect(x + TRIM_TRACK_WIDTH + 1, 19 + barValue, CHANNEL_TRACK_WIDTH, 30 - barValue, BLACK);
+	volatile uint8_t mask  = (1 << ch);
+	if((reverse & mask) == mask) { ks0108GotoXY(x, 52); ks0108Puts("REV");}
 }
 
 void processDisplay(){
@@ -388,7 +386,7 @@ void processDisplay(){
 			ks0108GotoXY(0, 10);
 //			ks0108Puts("  A        E        T        R        5        6        7        8");
 			
-         displayChannelBar(AIL, 1);
+         ks0108GotoXY(0, 1); ks0108Puts("AIL"); displayChannelBar(AIL, 1);
 			displayChannelBar(ELE, 15);	
 			displayChannelBar(THR, 29);	
 			displayChannelBar(RUD, 43);	
@@ -479,7 +477,7 @@ void processDisplay(){
 	_delay_ms(100);			
 }
 
-void getAnalogChannelValue(uint8_t ch){
+void readChannelValue(uint8_t ch){
 	/** read up the canonical channel value**/
 	uint16_t value = readAnalog(ch);
 	float calibratedChannelRange = calibrationUpper[ch] - calibrationLower[ch];
@@ -492,18 +490,6 @@ void getAnalogChannelValue(uint8_t ch){
 	ppm[ch] = MIN_SIGNAL_WIDTH + ((stickMoveRatio * (float)SIGNAL_TRAVERSAL)) + trims[ch];
 
 	percent[ch] = (200 * stickMoveRatio) - 100;
-}
-
-void getDigitalChannelValue(uint8_t ch){
-	/** read up the canonical channel value**/
-	uint16_t value = readAnalog(ch);
-	/** we need to do a xor here to swap condition for reverse and signal length **/
-	uint8_t mask = (1 << (ch -1));
-	
-	uint8_t xoredSignal = (value < 512) ^ ((reverse & mask) == mask);
-	
-	ppm[ch] = (xoredSignal ? MIN_SIGNAL_WIDTH : MAX_SIGNAL_WIDTH) + TRIM_CENTER;
-	percent[ch] = xoredSignal ? -100 : 100;
 }
 
 uint16_t micros_to_ticks(uint16_t value){
@@ -581,7 +567,7 @@ void saveCalibration(){
 void setupHardware(){
 	/** setup lcd **/
 	ks0108Init(0);
-	ks0108SelectFont(Arial_10, ks0108ReadFontData, BLACK);
+	ks0108SelectFont(courier_8, ks0108ReadFontData, BLACK);
 	/** Setup I/O **/
 	/** Analog Inputs**/
 	DDR_ANALOG = 0x00;						
