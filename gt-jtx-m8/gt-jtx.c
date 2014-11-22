@@ -189,7 +189,7 @@ int main(){
 
 	loadDefaultCalibration();								/** Load Default Calibration Settings **/
 
-	if(!((SETUP_STATE & 0x01 == 0x01)               /** check for Upper Calibration Limits **/
+	if(!(((SETUP_STATE & 0x01) == 0x01)               /** check for Upper Calibration Limits **/
 		|| ((SETUP_STATE & 0x02) ==0x02)) ) {			/** check for Lower Calibration Limits **/
 			
 		currentScreen = CALIBRATION;							/** something is not set,
