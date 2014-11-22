@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Atmel Studio Solution File, Format Version 11.00
+Project("{54F91283-7BC4-4236-8FF9-10F437C3AD48}") = "gt-jtx-m32", "gt-jtx-m32.cproj", "{39DBE1CD-CA04-45A5-B10C-8DDD02C1678D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|AVR = Debug|AVR
+		Release|AVR = Release|AVR
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{39DBE1CD-CA04-45A5-B10C-8DDD02C1678D}.Debug|AVR.ActiveCfg = Debug|AVR
+		{39DBE1CD-CA04-45A5-B10C-8DDD02C1678D}.Debug|AVR.Build.0 = Debug|AVR
+		{39DBE1CD-CA04-45A5-B10C-8DDD02C1678D}.Release|AVR.ActiveCfg = Release|AVR
+		{39DBE1CD-CA04-45A5-B10C-8DDD02C1678D}.Release|AVR.Build.0 = Release|AVR
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
