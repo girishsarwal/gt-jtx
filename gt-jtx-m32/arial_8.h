@@ -45,7 +45,7 @@
 #define ARIAL_8_WIDTH 8
 #define ARIAL_8_HEIGHT 8
 
-static uint8_t arial_8[] PROGMEM = {
+const uint8_t arial_8[] PROGMEM = {
     0x0A, 0xBE, // size
     0x0A, // width
     0x08, // height

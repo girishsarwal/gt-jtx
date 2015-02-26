@@ -10,7 +10,6 @@
 #define F_CPU 1000000UL
 #endif
 
-#define DEBUG
 
 #include <avr/io.h>
 
@@ -19,7 +18,11 @@
 #include <avr/interrupt.h>
 #include <math.h>
 #include "ks0108.h"
-#include "courier_8.h"
+#include "arial_8.h"
+
+#include "tx.h"
+
+
 
 
 /** channel mapping to named items **/
@@ -193,7 +196,38 @@ uint16_t _dirty = 0xFFFF;
 
 static int channel = SYNC;
 
+
+
+struct TX EEMEM MAINTX;
+struct TX maintx;
+
+void setup(){
+
+	/* check transmitter status **/
+
+	tx_load_from_eeprom(&maintx, &MAINTX);
+	if(maintx.eeprom_state != MAGIC_NUMBER){
+		tx_load_defaults(&maintx);
+	}
+	if((maintx.setup_state && UPPER_CALIBRATION_MISSING) == UPPER_CALIBRATION_MISSING){
+		tx_load_default_upper_calibration(&maintx);
+	}
+	if((maintx.setup_state && LOWER_CALIBRATION_MISSING) == LOWER_CALIBRATION_MISSING){
+		tx_load_default_lower_calibration(&maintx);
+	}
+	tx_save_to_eeprom(&maintx, &MAINTX);
+	
+}
+
 int main(){
+	setup();
+	
+	while(1){
+		
+	}
+}
+
+int main_bak(){
 	pszBuffer = malloc(5 * sizeof(char));
 
 	setupHardware();
@@ -220,8 +254,8 @@ int main(){
    loadModelSettings();	
 	
    SETUP_STATE = eeprom_read_byte(&_setupState);                  /** read setup status **/
-	if(!((SETUP_STATE & 0x01 == 0x01)               /** check for Upper Calibration Limits **/
-		|| ((SETUP_STATE & 0x02) ==0x02)) ) {			/** check for Lower Calibration Limits **/
+	if(!((SETUP_STATE & 0x01 == 0x01)							 /** check for Upper Calibration Limits **/
+		|| ((SETUP_STATE & 0x02) ==0x02)) ) {					/** check for Lower Calibration Limits **/
 		loadPreCalibration();								/** Load Default Calibration Settings **/
 		currentScreen = CALIBRATION;							/** something is not set,
 																		we will start with the calibration screen **/
@@ -567,7 +601,7 @@ void saveCalibration(){
 void setupHardware(){
 	/** setup lcd **/
 	ks0108Init(0);
-	ks0108SelectFont(courier_8, ks0108ReadFontData, BLACK);
+	ks0108SelectFont(arial_8, ks0108ReadFontData, BLACK);
 	/** Setup I/O **/
 	/** Analog Inputs**/
 	DDR_ANALOG = 0x00;						
