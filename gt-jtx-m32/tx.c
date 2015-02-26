@@ -90,6 +90,25 @@ void tx_set(struct TX* tx, uint16_t min_signal_width_us, uint16_t max_signal_wid
 }
 
 /************************************************************************/
+/*	function: stores the values of the calibration data as test values so
+				the calibration routine can set them correctly
+				*** These are not default calibration values ***
+	params:
+		tx:		the tx object on which to set
+*/
+/************************************************************************/
+void tx_load_no_calibration(struct TX* tx) {
+	uint8_t idx = -1;
+	while(++idx < NUM_CHANNELS){
+		tx->calibration_upper[idx] = 0;	
+	}
+	idx = -1;
+	while(++idx < NUM_CHANNELS){
+		tx->calibration_lower[idx] = 1024;
+	}
+}
+
+/************************************************************************/
 /*	function: store the upper calibration values
 	params:
 		channel: the channel for which storing, maps to array index
@@ -145,5 +164,19 @@ void tx_load_from_eeprom(struct TX* tx, void* from_location){
 void tx_set_model(struct TX* tx, void* to_location, struct MODEL* model){
 	tx->model = *model;	
 	eeprom_update_block(tx, to_location, sizeof(struct TX));
+}
+
+
+/************************************************************************/
+/*	function: calculates the parameters required for ppm generation
+	params:
+		tx:		the tx object on which to set
+		model:	model data
+*/
+/************************************************************************/
+void tx_calculate_parameters(struct TX* tx){
+	tx->mid_signal_width = (tx->min_signal_width + tx->min_signal_width) /2 + TRIM_CENTER;
+	tx->sync_signal_width = (tx->frame_width- (NUM_CHANNELS * (tx->mid_signal_width + tx->inter_channel_width)));	 /**whatever is left **/
+	tx->signal_traversal = tx->max_signal_width - tx->min_signal_width;
 }
 

@@ -4,7 +4,6 @@
  * Created: 2/23/2015 2:17:28 PM
  *  Author: gsarwal
  */ 
-#define DEBUG
 
 
 #define DEFAULT_PILOT_NAME "MAVERICK"
