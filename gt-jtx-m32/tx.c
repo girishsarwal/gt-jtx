@@ -100,11 +100,11 @@ void tx_set(struct TX* tx, uint16_t min_signal_width_us, uint16_t max_signal_wid
 void tx_load_no_calibration(struct TX* tx) {
 	uint8_t idx = -1;
 	while(++idx < NUM_CHANNELS){
-		tx->calibration_upper[idx] = 0;	
+		tx->calibration_upper[idx] = CALIBRATION_LOWER_END;	
 	}
 	idx = -1;
 	while(++idx < NUM_CHANNELS){
-		tx->calibration_lower[idx] = 1024;
+		tx->calibration_lower[idx] = CALIBRATION_UPPER_END;
 	}
 }
 

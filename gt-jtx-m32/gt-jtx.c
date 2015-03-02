@@ -64,6 +64,7 @@ void setup(){
 	if((maintx.setup_state && LOWER_CALIBRATION_MISSING) == LOWER_CALIBRATION_MISSING){
 		tx_load_default_lower_calibration(&maintx);
 	}
+	tx_calculate_parameters(&maintx);
 	tx_save_to_eeprom(&maintx, &MAINTX);
 	
 }
@@ -80,9 +81,10 @@ int main(){
 	uint8_t idx = -1;
 	while(1){
 		idx = -1;
-		while(++idx < NUM_CHANNELS){
+		while(++idx <= MAX_CHANNEL){
 			ppm[idx] = readChannelValue(idx);
 		}
+		ppm[SYNC] = maintx.sync_signal_width;
 	}
 }
 
