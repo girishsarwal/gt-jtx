@@ -5,6 +5,9 @@
  *  Author: gsarwal
  */ 
 
+#ifndef F_CPU
+#define F_CPU 1000000UL
+#endif
 
 #define DEFAULT_PILOT_NAME "MAVERICK"
 #define PILOT_NAME_LENGTH	24
