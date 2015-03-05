@@ -12,7 +12,7 @@
 #include <util/delay.h>
 #include <avr/interrupt.h>
 #include <math.h>
-
+#include "glcd/glcd.h"
 #include "tx.h"
 
 int16_t		ppm[SYNC + 1];					/** SYNC is the last channel in a zero based index accomodate +1 for the sync channel **/
@@ -32,6 +32,7 @@ void decTrim(uint8_t channel);
 
 void calibrateChannel(uint8_t channel);
 
+ISR(SPI_STC_vect);
 
 #define STARTADC ADCSRA |= (1<<ADEN) | (1<<ADPS0) | (1<<ADPS1) | (1<<ADPS0) | (1<<ADIE);
 
@@ -45,7 +46,7 @@ struct TX EEMEM MAINTX;
 struct TX maintx;
 
 void setup(){
-
+	
 	/* setup the hardware **/
 	setupHardware();
 	
@@ -160,7 +161,7 @@ ISR(TIMER1_COMPA_vect){
 
 void setupHardware(){
 	/** setup lcd **/
-	
+	glcd_init();
 	/** Setup I/O **/
 	/** Analog Inputs**/
 	DDR_ANALOG = 0x00;						
@@ -223,20 +224,4 @@ void reset_ppm_values(){
 	channel = SYNC;
 	OCR1A = micros_to_ticks(ppm[SYNC]);
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
