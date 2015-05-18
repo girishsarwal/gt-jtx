@@ -6,4 +6,5 @@ package com.gluedtomatoes.artrix;
 public interface Renderable {
     public void setVisible(Boolean visible);
     public Boolean getVisible();
+    public void update();
 }

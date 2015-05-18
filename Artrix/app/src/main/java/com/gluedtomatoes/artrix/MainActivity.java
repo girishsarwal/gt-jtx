@@ -15,12 +15,14 @@ public class MainActivity extends Activity implements StateMachine{
     private State mPreviousState;
     private State mGlobalState;
 
-    private Sprite s;
+
+    private RenderQueue renderQueue;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         init();
         surface = new ArtrixView(this);
+        renderQueue = new RenderQueue();
         setContentView(surface);
     }
 
@@ -68,12 +70,12 @@ public class MainActivity extends Activity implements StateMachine{
     public void init() {
         Transform.init(this);
         ShaderProgram.init(this);
-        s = new Sprite();
+        changeState(SplashState.state);
     }
 
     @Override
     public void update() {
-        s.update();
+        mCurrentState.update(this);
     }
 
     @Override

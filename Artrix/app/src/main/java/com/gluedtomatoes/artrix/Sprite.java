@@ -12,7 +12,7 @@ import java.nio.ShortBuffer;
 /**
  * Created by gsarwal on 5/8/2015.
  */
-public class Sprite extends Entity {
+public class Sprite extends Entity implements Renderable {
 
 
     private static FloatBuffer vertexBuffer;
@@ -58,6 +58,6 @@ public class Sprite extends Entity {
 
     @Override
     public void update() {
-        super.update();
+        /** have fun here**/
     }
 }

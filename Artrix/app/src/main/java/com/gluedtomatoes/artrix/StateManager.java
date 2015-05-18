@@ -11,8 +11,12 @@ public class StateManager {
         if(stateMachine.getPreviousState() == state){
             return;
         }
-        stateMachine.getPreviousState().exit(stateMachine);
+        State previousState = stateMachine.getPreviousState();
+        if(previousState!= null){
+            previousState.exit(stateMachine);
+        }
         stateMachine.setPreviousState(stateMachine.getCurrentState());
+        stateMachine.setCurrentState(state);
         stateMachine.getCurrentState().enter(stateMachine);
     }
 }
