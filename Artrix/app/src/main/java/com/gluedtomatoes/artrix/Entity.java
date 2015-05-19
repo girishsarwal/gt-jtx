@@ -5,49 +5,16 @@ import android.graphics.Point;
 /**
  * Created by gsarwal on 5/8/2015.
  */
-public class Entity implements StateMachine, Renderable{
+public class Entity implements StateMachine {
     protected  State mCurrentState;
     protected  State mPreviousState;
     protected  State mGlobalState;
 
-    private Vector2 mPosition;
-    private Vector2 mSize;
+    protected boolean mIsInitialized;
 
-    private Boolean mIsVisible;
-
-    public float getRotation() {
-        return mRotation;
+    public boolean isInitialized() {
+        return mIsInitialized;
     }
-
-    public void setRotation(float mRotation) {
-        this.mRotation = mRotation;
-    }
-
-    private float mRotation;
-
-    public Vector2 getPosition() {
-        return mPosition;
-    }
-
-    public void setPosition(Vector2 mPosition) {
-        this.mPosition = mPosition;
-    }
-    public void setPosition(Point mPosition) {
-        setPosition(Transform.PixelsToCoords(mPosition));
-    }
-
-
-    public Vector2 getSize() {
-        return mSize;
-    }
-
-    public void setSize(Vector2 mSize) {
-        this.mSize = mSize;
-    }
-    public void setSize(Point mSize) {
-        setSize(Transform.PixelsToCoords(mSize));
-    }
-
     @Override
     public State getCurrentState() {
         return mCurrentState;
@@ -102,20 +69,5 @@ public class Entity implements StateMachine, Renderable{
     @Override
     public void shutdown(){
 
-    }
-
-    @Override
-    public void setVisible(Boolean visible) {
-        mIsVisible = visible;
-        if(mIsVisible){
-            //enque in renderqueue
-        } else {
-            //deque from renderqueue
-        }
-    }
-
-    @Override
-    public Boolean getVisible() {
-        return mIsVisible;
     }
 }

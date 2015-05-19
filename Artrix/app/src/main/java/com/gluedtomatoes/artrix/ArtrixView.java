@@ -13,7 +13,7 @@ import javax.microedition.khronos.opengles.GL10;
  */
 public class ArtrixView extends GLSurfaceView implements GLSurfaceView.Renderer{
     public static RenderQueue RenderQueue;
-
+    private StateMachine mGame;
     public ArtrixView(Context context) {
         super(context);
         setEGLContextClientVersion(2);
@@ -21,6 +21,9 @@ public class ArtrixView extends GLSurfaceView implements GLSurfaceView.Renderer{
         setRenderer(this);
     }
 
+    public void setMachine(StateMachine sm){
+        mGame = sm;
+    }
 
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
@@ -35,6 +38,7 @@ public class ArtrixView extends GLSurfaceView implements GLSurfaceView.Renderer{
     @Override
     public void onDrawFrame(GL10 gl) {
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+        mGame.update();
         RenderQueue.Process();
     }
 }

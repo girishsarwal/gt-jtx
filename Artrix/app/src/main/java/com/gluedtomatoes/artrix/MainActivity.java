@@ -9,7 +9,7 @@ import android.view.MenuItem;
 
 
 public class MainActivity extends Activity implements StateMachine{
-    private GLSurfaceView surface;
+    private ArtrixView surface;
 
     private State mCurrentState;
     private State mPreviousState;
@@ -22,6 +22,7 @@ public class MainActivity extends Activity implements StateMachine{
         super.onCreate(savedInstanceState);
         init();
         surface = new ArtrixView(this);
+        surface.setMachine(this);
         renderQueue = new RenderQueue();
         setContentView(surface);
     }

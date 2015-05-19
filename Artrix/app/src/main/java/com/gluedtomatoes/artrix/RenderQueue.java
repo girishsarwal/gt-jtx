@@ -10,7 +10,7 @@ public class RenderQueue {
     public void Process(){
         Renderable r;
         while((r = renderCandidates.poll()) != null){
-            r.update();
+            r.render();
         }
     }
 
@@ -21,7 +21,9 @@ public class RenderQueue {
     public void Enque(Renderable renderable){
         renderCandidates.add(renderable);
     }
-
+    public void Remove(Renderable renderable){
+        renderCandidates.remove(renderable);
+    }
     public void Purge(){
         renderCandidates.clear();
     }
