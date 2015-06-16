@@ -1,11 +1,19 @@
 package com.gluedtomatoes.artrix;
 
 import android.app.Activity;
+import android.content.Context;
+import android.hardware.usb.UsbManager;
 import android.opengl.GLSurfaceView;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+
+import com.hoho.android.usbserial.driver.UsbSerialDriver;
+import com.hoho.android.usbserial.driver.UsbSerialProber;
+
+import java.io.IOException;
 
 
 public class MainActivity extends Activity implements StateMachine{
@@ -19,6 +27,32 @@ public class MainActivity extends Activity implements StateMachine{
     private RenderQueue renderQueue;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
+        // Get UsbManager from Android.
+        UsbManager manager = (UsbManager) getSystemService(Context.USB_SERVICE);
+
+        // Find the first available driver.
+        UsbSerialDriver driver = UsbSerialProber.acquire(manager);
+
+        if (driver != null) {
+            try {
+                driver.open();
+                driver.setBaudRate(115200);
+                byte buffer[] = new byte[16];
+                int numBytesRead = driver.read(buffer, 1000);
+                Log.d("", "Read " + numBytesRead + " bytes.");
+            } catch (IOException e) {
+                // Deal with error.
+            } finally {
+                try {
+                    driver.close();
+                }catch (IOException e){
+
+                }
+            }
+
+        }
+
         super.onCreate(savedInstanceState);
         init();
         surface = new ArtrixView(this);

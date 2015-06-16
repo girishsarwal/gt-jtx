@@ -1,6 +1,8 @@
 package com.gluedtomatoes.artrix;
 
 import android.graphics.Point;
+import android.os.Debug;
+import android.util.Log;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;

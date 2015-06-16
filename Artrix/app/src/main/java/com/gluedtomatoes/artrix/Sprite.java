@@ -13,7 +13,7 @@ import java.nio.ShortBuffer;
 /**
  * Created by gsarwal on 5/8/2015.
  */
-public class Sprite extends DrawableEntity implements Renderable {
+public class Sprite extends DrawableEntity  {
 
     private static final int COORDS_PER_VERTEX = 3;
     private static final int SIZE_OF_FLOAT = 4;
