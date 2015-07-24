@@ -51,6 +51,9 @@ public class DrawableEntity extends Entity implements Renderable{
 
 
     DrawableEntity(){
+        mPosition = new Vector2();
+        mRotation = 0.0f;
+        mSize = new Vector2();
         mVisible = true;
     }
     @Override

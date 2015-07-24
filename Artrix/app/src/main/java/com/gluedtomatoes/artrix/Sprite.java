@@ -52,4 +52,10 @@ public class Sprite extends DrawableEntity implements Renderable {
         indexBuffer.position(0);
         super.init();
     }
+
+    @Override
+    public void render() {
+
+        super.render();
+    }
 }

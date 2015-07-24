@@ -3,6 +3,7 @@ package com.gluedtomatoes.artrix;
 import android.app.Activity;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
+import android.graphics.Matrix;
 import android.opengl.GLES20;
 import android.support.v7.internal.view.menu.ActionMenuItemView;
 
@@ -22,6 +23,19 @@ public class ShaderProgram {
     public static void use(String name){
         GLES20.glUseProgram(mShaders.get(name));
     }
+
+    public static void setUniformVector(String shader, String uniform, Vector2 value){
+
+    }
+
+    public static void setUniformMatrix(String shader, String uniform, Matrix matrix){
+
+    }
+
+    public static void setUniformFloat(String shader, String uniform, float value){
+
+    }
+
     public static void init(Activity activity){
 
         AssetManager am = activity.getAssets();
