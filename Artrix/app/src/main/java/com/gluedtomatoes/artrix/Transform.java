@@ -39,7 +39,7 @@ public class Transform {
     public static void WorldToScreen(){
 
     }
-    public static Point CoordsToPixels(Vector2 vector){
+    public static Point CoordsToPixels(Vector3 vector){
         Point screen = new Point();
         screen.x = (int)vector.mX * mScreenWidthPixels;
         screen.y = (int)vector.mY * mScreenHeightPixels;
@@ -49,8 +49,8 @@ public class Transform {
     /***
      * converts from pixels to cooridnates
      */
-    public static Vector2 PixelsToCoords(Point point){
-        Vector2 coords = new Vector2();
+    public static Vector3 PixelsToCoords(Point point){
+        Vector3 coords = new Vector3();
         coords.mX = point.x / mScreenWidthPixels;
         coords.mY = point.y / mScreenHeightPixels;
         return  coords;

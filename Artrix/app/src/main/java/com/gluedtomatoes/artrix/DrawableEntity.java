@@ -1,11 +1,8 @@
 package com.gluedtomatoes.artrix;
 
 import android.graphics.Point;
-import android.os.Debug;
-import android.util.Log;
+import android.opengl.GLES20;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
 
@@ -17,10 +14,26 @@ public class DrawableEntity extends Entity implements Renderable{
     protected FloatBuffer textureBuffer;
     protected ShortBuffer indexBuffer;
 
+    protected int vertexCount = 0;
+    protected int triangleCount = 0;
+    protected int vertexStride = 0;
+
     private boolean mVisible;
-    private Vector2 mPosition;
-    private Vector2 mSize;
+    private Vector3 mPosition;
+    private Vector3 mSize;
     private float mRotation;
+    private String mShadingProgram;
+
+    private VertexDescriptor mVertexDescriptor;
+
+    DrawableEntity(){
+        this("simple");
+        mVertexDescriptor = new VertexDescriptor(VertexDescriptor.POSITION_XYZW | VertexDescriptor.COLOR_RGBA);
+        mVisible = true;
+    }
+    public DrawableEntity(String shader){
+        setShadingProgram(shader);
+    }
 
 
     public float getRotation() {
@@ -30,10 +43,10 @@ public class DrawableEntity extends Entity implements Renderable{
         this.mRotation = mRotation;
     }
 
-    public Vector2 getPosition() {
+    public Vector3 getPosition() {
         return mPosition;
     }
-    public void setPosition(Vector2 mPosition) {
+    public void setPosition(Vector3 mPosition) {
         this.mPosition = mPosition;
     }
     public void setPosition(Point mPosition) {
@@ -41,23 +54,61 @@ public class DrawableEntity extends Entity implements Renderable{
     }
 
 
-    public Vector2 getSize() {
+    public Vector3 getSize() {
         return mSize;
     }
-    public void setSize(Vector2 mSize) {
+    public void setSize(Vector3 mSize) {
         this.mSize = mSize;
     }
     public void setSize(Point mSize) {
         setSize(Transform.PixelsToCoords(mSize));
     }
 
-
-    DrawableEntity(){
-        mVisible = true;
+    public String getShadingProgram(){
+        return mShadingProgram;
     }
+    public void setShadingProgram(String shadingProgram){
+        mShadingProgram = shadingProgram;
+    }
+
+
+    public VertexDescriptor getVertexDescriptor(){
+        return mVertexDescriptor;
+    }
+    public void setVertexDescriptor(VertexDescriptor vertexFormat){
+        mVertexDescriptor = vertexFormat;
+    }
+
     @Override
-    public void init() {
+    public void init()
+    {
+        vertexCount = vertexBuffer.remaining();
         mIsInitialized = true;
+
+        int shader = ShaderProgram.useShaderProgram(mShadingProgram);
+        int format = mVertexDescriptor.getFormat();
+
+
+        /** the idea here is to read the shader and see whatever components are available in the shader
+         * once we have all the components available, we determine the vertex format that the drawable should be using
+         */
+
+        int hPosition = GLES20.glGetAttribLocation(shader, "vPosition");
+
+        if(hPosition > 0){
+            if((mVertexDescriptor.getFormat() & VertexDescriptor.POSITION_XYZ) != VertexDescriptor.POSITION_XYZ){
+                format |= VertexDescriptor.POSITION_XYZW;
+            }
+            GLES20.glEnableVertexAttribArray(hPosition);
+        }
+        int hColor = GLES20.glGetAttribLocation(shader, "vColor");
+        if(hColor > 0){
+            if((mVertexDescriptor.getFormat() & VertexDescriptor.COLOR_RGB) != VertexDescriptor.COLOR_RGB){
+                format |= VertexDescriptor.COLOR_RGBA;
+            }
+            GLES20.glEnableVertexAttribArray(hColor);
+        }
+        mVertexDescriptor.setFormat(format);
     }
 
     @Override
@@ -85,6 +136,7 @@ public class DrawableEntity extends Entity implements Renderable{
 
     @Override
     public void render() {
+
 
     }
 }

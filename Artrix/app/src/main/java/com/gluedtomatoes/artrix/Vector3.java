@@ -5,18 +5,21 @@ import android.graphics.Point;
 /**
  * Created by gsarwal on 5/8/2015.
  */
-public class Vector2 {
+public class Vector3 {
     public float mX;
     public float mY;
+    public float mZ;
 
-    public Vector2(float mX, float mY) {
+    public Vector3(float mX, float mY, float mZ) {
         this.mX = mX;
         this.mY = mY;
+        this.mZ = mZ;
     }
 
-    public Vector2() {
-        this.mX = 0;
-        this.mY = 0;
+    public Vector3() {
+        this.mX = 0.0f;
+        this.mY = 0.0f;
+        this.mZ = 0.0f;
     }
 }
 

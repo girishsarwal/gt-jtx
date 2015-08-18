@@ -72,5 +72,10 @@ public class ShaderProgram {
         return shaderSource;
     }
 
+    public static int useShaderProgram(String name){
+        int program = mShaders.get(name);
+        GLES20.glUseProgram(program);
+        return program;
+    }
 
 }
