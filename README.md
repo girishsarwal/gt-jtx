@@ -17,13 +17,19 @@ Everything on the menu system and other items are shown on a LCD display mounted
 
 You can clone the repo, build and flash the firmware to the ATMEGA chip. For having this setup, you'd need:
 
-A 3D joystick - I use Genius Metalstrike 3D. The price and quality are good and there's quite some space inside. Get one here
-A Breakout board to fit the joystick - The brains of the joystick are on the same circuit board as the trim switches. We will need to rip out the brain and create our own board using the same micro push switches. Hardware Schematic Board Layout. Right Click > Save Link as... (This breakout board depends on the joystick used so if you plan to use a different joystick, this download might be of little use.
-The gt-jtx board fabricated. This is simple if you know PCB etching, if not, its fun learning. Hardware Schematic Board Layout. Right Click > Save Link as...
-An ATMEGA 8, An LED, A 10K resistor, A 10K variable POT, A 16x2 LCD screen, Berg strips, one M/F pair is enough, Loads of wires for routing Get Everything Here
-A USBASP Atmel programmer. If you have one, good; If not you can send over your chip, I will have it flashed. Usbasp
-A radio module. I use Fr-Sky (bought from hobbyking) but you can use any as long as it has PPM input. Get one here
-A Character LCD Module (16x2)
+- A 3D joystick 
+- A Breakout board to fit the joystick: The brains of the joystick are on the same circuit board as the trim switches. We will need to rip out the brain and create our own board using the same micro push switches. Hardware Schematic Board Layout. Right Click > Save Link as... (This breakout board depends on the joystick used so if you plan to use a different joystick, this download might be of little use.
+- The gt-jtx board fabricated. This is simple if you know PCB etching, if not, its fun learning. Checkout the hardware section for schematics and pcb layout
+- An ATMEGA 8, 
+- An LED, 
+- A 10K resistor, 
+- A 10K variable POT, 
+- A 16x2 LCD screen, 
+- Berg strips, one M/F pair is enough, 
+- Loads of wires for routing
+- A USBASP Atmel programmer. If you have one, good; If not you can send over your chip, I will have it flashed. Usbasp
+- A radio module. I use Fr-Sky (bought from hobbyking) but you can use any as long as it has PPM input. Get one here
+- m8 version programmed on the ATMEGA 8
 
 # The ATMEGA32 version
 
@@ -33,13 +39,18 @@ The brain is reponsible for the ppm signal generations, whereas the controller t
 A 3D joystick - I used Thrustmaster HOTAS 3D for this advanced version.
 The gt-jtx-m32 board fabricated. This is simple if you know PCB etching, if not, its fun learning. Schematics in the hardware section
 
-- An ATMEGA 32, An LED, A 10K resistor, Berg strips, one M/F pair is enough, Loads of wires for routing.
+- A 3D Joystick
+- An ATMEGA 32, 
+- An LED, 
+- A 10K resistor, 
+- Berg strips, one M/F pair is enough, Loads of wires for routing.
 - A USBASP Atmel programmer. If you have one, good; If not you can send over your chip, I will have it flashed. Usbasp
 - A radio module. I use Fr-Sky (bought from hobbyking) but you can use any as long as it has PPM input. 
 - An Android device with USB OTG support
+- A CP2012 USB<->USART bridge
 - gt-jtx m32 programmed onto the ATMEGA32 board
 - Artrix App loaded on the Android device
-
+- Loads of wires for routing
 
 # Disclaimer
 I take no responsibility or warranty for any damage to you or your equipment, that may arise out of or is a consequence of using or reproducing any parts or features of the gt-jtx software/hardware system. Everything you do is completely at your own risk and expense.
