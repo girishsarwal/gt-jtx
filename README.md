@@ -46,7 +46,7 @@ The gt-jtx-m32 board fabricated. This is simple if you know PCB etching, if not,
 - Berg strips, one M/F pair is enough, Loads of wires for routing.
 - A USBASP Atmel programmer. If you have one, good; If not you can send over your chip, I will have it flashed. Usbasp
 - A radio module. I use Fr-Sky (bought from hobbyking) but you can use any as long as it has PPM input. 
-- An Android device with USB OTG support
+- An Android device with USB OTG support - choose your screen size!
 - A CP2012 USB<->USART bridge
 - gt-jtx m32 programmed onto the ATMEGA32 board
 - Artrix App loaded on the Android device
