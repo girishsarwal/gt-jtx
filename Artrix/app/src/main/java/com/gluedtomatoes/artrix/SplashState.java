@@ -8,11 +8,12 @@ public class SplashState implements State{
     private Sprite background = new Sprite();
     @Override
     public void enter(StateMachine sm) {
-
+        background.init();
     }
 
     @Override
     public void update(StateMachine sm) {
+
         background.update();
     }
 

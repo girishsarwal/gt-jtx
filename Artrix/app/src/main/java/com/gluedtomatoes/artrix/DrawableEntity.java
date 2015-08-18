@@ -28,8 +28,13 @@ public class DrawableEntity extends Entity implements Renderable{
 
     DrawableEntity(){
         this("simple");
-        mVertexDescriptor = new VertexDescriptor(VertexDescriptor.POSITION_XYZW | VertexDescriptor.COLOR_RGBA);
+
+        mPosition = new Vector3();
+        mRotation = 0.0f;
+        mSize = new Vector3();
         mVisible = true;
+
+        mVertexDescriptor = new VertexDescriptor(VertexDescriptor.POSITION_XYZW | VertexDescriptor.COLOR_RGBA);
     }
     public DrawableEntity(String shader){
         setShadingProgram(shader);
@@ -71,13 +76,13 @@ public class DrawableEntity extends Entity implements Renderable{
         mShadingProgram = shadingProgram;
     }
 
-
     public VertexDescriptor getVertexDescriptor(){
         return mVertexDescriptor;
     }
-    public void setVertexDescriptor(VertexDescriptor vertexFormat){
+    public void setVertexDescriptor(VertexDescriptor vertexFormat) {
         mVertexDescriptor = vertexFormat;
     }
+
 
     @Override
     public void init()

@@ -44,4 +44,10 @@ public class Sprite extends DrawableEntity  {
 
         super.init();
     }
+
+    @Override
+    public void render() {
+
+        super.render();
+    }
 }
