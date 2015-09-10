@@ -1,11 +1,13 @@
 package com.gluedtomatoes.artrix;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
 import android.graphics.Matrix;
 import android.opengl.GLES20;
 import android.support.v7.internal.view.menu.ActionMenuItemView;
+import android.util.Log;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -36,9 +38,9 @@ public class ShaderProgram {
 
     }
 
-    public static void init(Activity activity){
+    public static void init(Context context){
 
-        AssetManager am = activity.getAssets();
+        AssetManager am = context.getAssets();
         String[] list;
 
         try {
@@ -52,21 +54,51 @@ public class ShaderProgram {
         }
     }
     private static int createShadingProgram(AssetManager am, String name) {
+        String vsPath = String.format("%s/%s/%s.vs", SHADERS_ROOT, name, name);
+        String psPath = String.format("%s/%s/%s.ps", SHADERS_ROOT, name, name);
+        String vsSource = readShaderFile(am, vsPath);
+        String psSource = readShaderFile(am, psPath);
+        return compileProgram(
+                loadShader(GLES20.GL_VERTEX_SHADER, vsSource),
+                loadShader(GLES20.GL_FRAGMENT_SHADER, psSource)
+        );
+    }
 
-        int vertexShader = GLES20.glCreateShader(GLES20.GL_VERTEX_SHADER);
-        GLES20.glShaderSource(vertexShader, readShaderFile(am, String.format("%s/%s/%s.vs", SHADERS_ROOT, name, name)));
-        GLES20.glCompileShader(vertexShader);
+    private static int loadShader(int shaderType, String resource){
+        int shader = GLES20.glCreateShader(shaderType);
+        if (shader != 0) {
+            GLES20.glShaderSource(shader, resource);
+            GLES20.glCompileShader(shader);
+            int[] compiled = new int[1];
+            GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, compiled, 0);
+            if (compiled[0] == 0) {
+                Log.e("Shader Load Error", "Could not compile shader " + shaderType + ":");
+                Log.e("Shader Load Error", GLES20.glGetShaderInfoLog(shader));
+                GLES20.glDeleteShader(shader);
+                shader = 0;
+            }
+        }
+        return shader;
+    }
 
-        int fragmentShader = GLES20.glCreateShader(GLES20.GL_FRAGMENT_SHADER);
-        GLES20.glShaderSource(vertexShader, readShaderFile(am, String.format("%s/%s/%s.ps", SHADERS_ROOT, name, name)));
-        GLES20.glCompileShader(fragmentShader);
-
-        int program = GLES20.glCreateProgram();
-        GLES20.glAttachShader(program, vertexShader);
-        GLES20.glAttachShader(program, fragmentShader);
-        GLES20.glLinkProgram(program);
+    public static int compileProgram (int vertexShader, int fragmentShader) {
+    int program = GLES20.glCreateProgram();
+        if (program != 0) {
+            GLES20.glAttachShader(program, vertexShader);
+            GLES20.glAttachShader(program, fragmentShader);
+            GLES20.glLinkProgram(program);
+            int[] linkStatus = new int[1];
+            GLES20.glGetProgramiv(program, GLES20.GL_LINK_STATUS, linkStatus, 0);
+            if (linkStatus[0] != GLES20.GL_TRUE) {
+                Log.e("Shader Error", "Could not link program: ");
+                Log.e("Shader Error", GLES20.glGetProgramInfoLog(program));
+                GLES20.glDeleteProgram(program);
+                program = 0;
+            }
+        }
         return program;
     }
+
 
     private static String readShaderFile(AssetManager am, String name){
         String shaderSource = "";
@@ -80,6 +112,7 @@ public class ShaderProgram {
             while ((read = in.read(buffer)) != -1) {
                 baos.write(buffer, 0, read);
             }
+            shaderSource = buffer.toString();
         } catch (IOException e) {
             e.printStackTrace();
         }

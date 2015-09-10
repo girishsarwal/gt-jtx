@@ -54,7 +54,7 @@ public class MainActivity extends Activity implements StateMachine{
         }
 
         super.onCreate(savedInstanceState);
-        init();
+
         surface = new ArtrixView(this);
         surface.setMachine(this);
         renderQueue = new RenderQueue();
@@ -104,7 +104,6 @@ public class MainActivity extends Activity implements StateMachine{
     @Override
     public void init() {
         Transform.init(this);
-        ShaderProgram.init(this);
         changeState(SplashState.state);
     }
 
