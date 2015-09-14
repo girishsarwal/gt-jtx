@@ -98,17 +98,17 @@ public class DrawableEntity extends Entity implements Renderable{
          * once we have all the components available, we determine the vertex format that the drawable should be using
          */
 
-        int hPosition = GLES20.glGetAttribLocation(shader, "vPosition");
+        int hPosition = GLES20.glGetAttribLocation(shader, "inPosition");
 
-        if(hPosition > 0){
-            if((mVertexDescriptor.getFormat() & VertexDescriptor.POSITION_XYZ) != VertexDescriptor.POSITION_XYZ){
+        if(hPosition >= 0){
+            if((format & VertexDescriptor.POSITION_XYZ) != VertexDescriptor.POSITION_XYZ){
                 format |= VertexDescriptor.POSITION_XYZW;
             }
             GLES20.glEnableVertexAttribArray(hPosition);
         }
-        int hColor = GLES20.glGetAttribLocation(shader, "vColor");
-        if(hColor > 0){
-            if((mVertexDescriptor.getFormat() & VertexDescriptor.COLOR_RGB) != VertexDescriptor.COLOR_RGB){
+        int hColor = GLES20.glGetAttribLocation(shader, "inColor");
+        if(hColor >= 0){
+            if((format & VertexDescriptor.COLOR_RGB) != VertexDescriptor.COLOR_RGB){
                 format |= VertexDescriptor.COLOR_RGBA;
             }
             GLES20.glEnableVertexAttribArray(hColor);

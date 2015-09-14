@@ -1,5 +1,7 @@
 package com.gluedtomatoes.artrix;
 
+import android.opengl.GLES20;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -47,7 +49,6 @@ public class Sprite extends DrawableEntity  {
 
     @Override
     public void render() {
-
         super.render();
     }
 }

@@ -72,7 +72,7 @@ public class ShaderProgram {
             int[] compiled = new int[1];
             GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, compiled, 0);
             if (compiled[0] == 0) {
-                Log.e("Shader Load Error", "Could not compile shader " + shaderType + ":");
+                Log.e("Shader Load Error", "Could not compile shader " + shaderType + ":" + resource);
                 Log.e("Shader Load Error", GLES20.glGetShaderInfoLog(shader));
                 GLES20.glDeleteShader(shader);
                 shader = 0;
@@ -112,7 +112,7 @@ public class ShaderProgram {
             while ((read = in.read(buffer)) != -1) {
                 baos.write(buffer, 0, read);
             }
-            shaderSource = buffer.toString();
+            shaderSource = baos.toString();
         } catch (IOException e) {
             e.printStackTrace();
         }
