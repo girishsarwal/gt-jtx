@@ -1,6 +1,7 @@
 package com.gluedtomatoes.artrix;
 
 import android.graphics.Point;
+import android.graphics.Shader;
 import android.opengl.GLES20;
 
 import java.nio.FloatBuffer;
@@ -22,7 +23,7 @@ public class DrawableEntity extends Entity implements Renderable{
     private Vector3 mPosition;
     private Vector3 mSize;
     private float mRotation;
-    private String mShadingProgram;
+    private ShaderProgram mShadingProgram;
 
     private VertexDescriptor mVertexDescriptor;
 
@@ -69,11 +70,11 @@ public class DrawableEntity extends Entity implements Renderable{
         setSize(Transform.PixelsToCoords(mSize));
     }
 
-    public String getShadingProgram(){
+    public ShaderProgram getShadingProgram(){
         return mShadingProgram;
     }
     public void setShadingProgram(String shadingProgram){
-        mShadingProgram = shadingProgram;
+        mShadingProgram = ShaderProgram.get(shadingProgram);
     }
 
     public VertexDescriptor getVertexDescriptor(){
@@ -90,30 +91,11 @@ public class DrawableEntity extends Entity implements Renderable{
         vertexCount = vertexBuffer.remaining();
         mIsInitialized = true;
 
-        int shader = ShaderProgram.useShaderProgram(mShadingProgram);
-        int format = mVertexDescriptor.getFormat();
-
-
         /** the idea here is to read the shader and see whatever components are available in the shader
          * once we have all the components available, we determine the vertex format that the drawable should be using
          */
-
-        int hPosition = GLES20.glGetAttribLocation(shader, "inPosition");
-
-        if(hPosition >= 0){
-            if((format & VertexDescriptor.POSITION_XYZ) != VertexDescriptor.POSITION_XYZ){
-                format |= VertexDescriptor.POSITION_XYZW;
-            }
-            GLES20.glEnableVertexAttribArray(hPosition);
-        }
-        int hColor = GLES20.glGetAttribLocation(shader, "inColor");
-        if(hColor >= 0){
-            if((format & VertexDescriptor.COLOR_RGB) != VertexDescriptor.COLOR_RGB){
-                format |= VertexDescriptor.COLOR_RGBA;
-            }
-            GLES20.glEnableVertexAttribArray(hColor);
-        }
-        mVertexDescriptor.setFormat(format);
+        mShadingProgram.use();
+        mVertexDescriptor =  mShadingProgram.createSuitableVertexFormat();
     }
 
     @Override

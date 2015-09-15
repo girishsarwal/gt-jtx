@@ -1,42 +1,68 @@
 package com.gluedtomatoes.artrix;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.res.AssetManager;
-import android.content.res.Resources;
-import android.graphics.Matrix;
 import android.opengl.GLES20;
-import android.support.v7.internal.view.menu.ActionMenuItemView;
 import android.util.Log;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.HashMap;
-import java.util.Hashtable;
 
 /**
- * Created by gsarwal on 5/8/2015.
+ * Created by gsarwal on 9/14/2015.
  */
 public class ShaderProgram {
+
     public static String SHADERS_ROOT = "shaders";
-    private static HashMap<String, Integer> mShaders = new HashMap<>();
-    public static void use(String name){
-        GLES20.glUseProgram(mShaders.get(name));
+    private static HashMap<String, ShaderProgram> mShaderPrograms = new HashMap<>();
+
+    private Integer mNativeId;
+    private String mName;
+    private VertexDescriptor mVertexDescriptor;
+
+    private HashMap<String, Integer> mUniformsMap;
+    private HashMap<String, Integer> mAttributesMap;
+
+
+    public ShaderProgram(String name){
+        mUniformsMap = new HashMap<>();
+        mAttributesMap = new HashMap<>();
     }
 
-    public static void setUniformVector(String shader, String uniform, Vector3 value){
+    private void setNativeId(int nativeId){
+        mNativeId = nativeId;
+    }
+
+    public void use(){
+        GLES20.glUseProgram(mNativeId);
+    }
+
+    public void setUniformVector(String uniform, Vector3 value){
 
     }
 
-    public static void setUniformMatrix(String shader, String uniform, Matrix matrix){
+    public void setUniformMatrix(String uniform, Object matrix){
 
     }
 
-    public static void setUniformFloat(String shader, String uniform, float value){
+    public void setUniformFloat(String uniform, float value){
 
     }
+    public void setAttributeVector(String attribute, Vector3 value){
+
+    }
+
+    public void setAttrbuteMatrix(String uniform, Object matrix){
+
+    }
+
+    public void setAtteibuteFloat(String uniform, float value){
+
+    }
+
+
 
     public static void init(Context context){
 
@@ -46,22 +72,27 @@ public class ShaderProgram {
         try {
             list = am.list(SHADERS_ROOT);
             for(String s: list) {
-                mShaders.put(s, createShadingProgram(am, s));
+                mShaderPrograms.put(s, createShadingProgram(am, s));
             }
         } catch (IOException e) {
-
             e.printStackTrace();
         }
     }
-    private static int createShadingProgram(AssetManager am, String name) {
+
+    private static ShaderProgram createShadingProgram(AssetManager am, String name) {
         String vsPath = String.format("%s/%s/%s.vs", SHADERS_ROOT, name, name);
         String psPath = String.format("%s/%s/%s.ps", SHADERS_ROOT, name, name);
         String vsSource = readShaderFile(am, vsPath);
         String psSource = readShaderFile(am, psPath);
-        return compileProgram(
+        ShaderProgram program = new ShaderProgram(name);
+
+        program.setNativeId(compileProgram(
                 loadShader(GLES20.GL_VERTEX_SHADER, vsSource),
                 loadShader(GLES20.GL_FRAGMENT_SHADER, psSource)
-        );
+        ));
+
+        program.fetchAttributes();
+        return program;
     }
 
     private static int loadShader(int shaderType, String resource){
@@ -82,7 +113,7 @@ public class ShaderProgram {
     }
 
     public static int compileProgram (int vertexShader, int fragmentShader) {
-    int program = GLES20.glCreateProgram();
+        int program = GLES20.glCreateProgram();
         if (program != 0) {
             GLES20.glAttachShader(program, vertexShader);
             GLES20.glAttachShader(program, fragmentShader);
@@ -99,6 +130,37 @@ public class ShaderProgram {
         return program;
     }
 
+
+    private void fetchAttributes() {
+        fetchAttribute("inPosition");
+        fetchAttribute("inColor");
+    }
+
+    public HashMap<String, Integer> getAttributes(){
+        return mUniformsMap;
+    }
+
+    /**TODO: move to a separate class so we do not have to keep passing name **/
+    private void fetchAttribute(String elementName){
+        use();
+        int hAttribute = GLES20.glGetAttribLocation(mNativeId, elementName);
+        if(hAttribute >= 0){
+            mAttributesMap.put(elementName, hAttribute);
+        }
+    }
+
+    public VertexDescriptor createSuitableVertexFormat(){
+        int format = 0;
+        VertexDescriptor vertexDescriptor = new VertexDescriptor(0);
+        if(mAttributesMap.containsKey("inPosition")){
+            format |= vertexDescriptor.POSITION_XYZW;
+        }
+        if(mAttributesMap.containsKey("inColor")){
+            format |= vertexDescriptor.COLOR_RGBA;
+        }
+        vertexDescriptor.setFormat(format);
+        return vertexDescriptor;
+    }
 
     private static String readShaderFile(AssetManager am, String name){
         String shaderSource = "";
@@ -119,10 +181,8 @@ public class ShaderProgram {
         return shaderSource;
     }
 
-    public static int useShaderProgram(String name){
-        int program = mShaders.get(name);
-        GLES20.glUseProgram(program);
-        return program;
+    public  static ShaderProgram get(String name){
+        return mShaderPrograms.get(name);
     }
 
 }
