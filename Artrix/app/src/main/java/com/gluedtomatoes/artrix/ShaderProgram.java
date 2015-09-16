@@ -9,6 +9,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
+import java.util.Iterator;
 
 /**
  * Created by gsarwal on 9/14/2015.
@@ -146,6 +147,20 @@ public class ShaderProgram {
         int hAttribute = GLES20.glGetAttribLocation(mNativeId, elementName);
         if(hAttribute >= 0){
             mAttributesMap.put(elementName, hAttribute);
+        }
+    }
+
+    public void enableVertexAttributes(){
+        use();
+        for(int value: mAttributesMap.values()){
+            GLES20.glEnableVertexAttribArray(value);
+        }
+    }
+
+    public void disableVertexAttributes(){
+        use();
+        for(int value: mAttributesMap.values()){
+            GLES20.glDisableVertexAttribArray(value);
         }
     }
 

@@ -49,6 +49,9 @@ public class Sprite extends DrawableEntity  {
 
     @Override
     public void render() {
+        mShadingProgram.enableVertexAttributes();
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, mVertexCount);
         super.render();
+        mShadingProgram.disableVertexAttributes();
     }
 }
