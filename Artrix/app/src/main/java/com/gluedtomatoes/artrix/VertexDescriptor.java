@@ -19,12 +19,9 @@ public class VertexDescriptor {
     public static final int SIZE_OF_SHORT = 2;
 
 
-    /*public static final VertexDescriptor VF_POSITION_COLOR= new VertexDescriptor(POSITION_XYZW | COLOR_RGBA);
-    public static final VertexDescriptor VF_POSITION_COLOR_INDEX = new VertexDescriptor(POSITION_XYZW | COLOR_RGBA | INDEX_SHORT);
+    public static final VertexDescriptor VF_POSITION_COLOR= new VertexDescriptor(POSITION_XYZW | COLOR_RGBA);
     public static final VertexDescriptor VF_POSITION_COLOR_UV1 = new VertexDescriptor(POSITION_XYZW | COLOR_RGBA | UV1);
-    public static final VertexDescriptor VF_POSITION_COLOR_INDEX_UV1 = new VertexDescriptor(POSITION_XYZW | COLOR_RGBA | INDEX_SHORT | UV1);
     public static final VertexDescriptor VF_POSITION_COLOR_UV1_UV2 = new VertexDescriptor(POSITION_XYZW | COLOR_RGBA | UV1 | UV2);
-    public static final VertexDescriptor VF_POSITION_COLOR_UV1_UV2_INDEX = new VertexDescriptor(POSITION_XYZW | COLOR_RGBA | INDEX_SHORT | UV1 | UV2);*/
 
     private int mFormat;
     private int mStride;
@@ -41,12 +38,11 @@ public class VertexDescriptor {
         if((mFormat & COLOR_RGB) == COLOR_RGB) mStride += 3 * SIZE_OF_FLOAT;
         if((mFormat & COLOR_RGBA) == COLOR_RGBA) mStride += 4 * SIZE_OF_FLOAT;
         if((mFormat & NORMAL_XYZ) == NORMAL_XYZ) mStride += 3 * SIZE_OF_FLOAT;
-        if((mFormat & INDEX_SHORT) == INDEX_SHORT) mStride += 1 * SIZE_OF_SHORT;
         if((mFormat & UV1) == UV1) mStride += 2 * SIZE_OF_FLOAT;
         if((mFormat & UV2) == UV2) mStride += 2 * SIZE_OF_FLOAT;
     }
 
     public VertexDescriptor(int format) {
-        setFormat(POSITION_XYZW | COLOR_RGBA | INDEX_SHORT);
+        setFormat(POSITION_XYZ | COLOR_RGB);
     }
 }

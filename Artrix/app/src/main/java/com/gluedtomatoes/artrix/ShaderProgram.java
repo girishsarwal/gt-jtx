@@ -21,11 +21,9 @@ public class ShaderProgram {
 
     private Integer mNativeId;
     private String mName;
-    private VertexDescriptor mVertexDescriptor;
 
     private HashMap<String, Integer> mUniformsMap;
     private HashMap<String, Integer> mAttributesMap;
-
 
     public ShaderProgram(String name){
         mUniformsMap = new HashMap<>();
@@ -39,6 +37,7 @@ public class ShaderProgram {
     public void use(){
         GLES20.glUseProgram(mNativeId);
     }
+
 
     public void setUniformVector(String uniform, Vector3 value){
 
@@ -137,17 +136,21 @@ public class ShaderProgram {
         fetchAttribute("inColor");
     }
 
-    public HashMap<String, Integer> getAttributes(){
-        return mUniformsMap;
-    }
-
     /**TODO: move to a separate class so we do not have to keep passing name **/
     private void fetchAttribute(String elementName){
         use();
-        int hAttribute = GLES20.glGetAttribLocation(mNativeId, elementName);
+        int hAttribute = getAttributeLocation(elementName);
         if(hAttribute >= 0){
             mAttributesMap.put(elementName, hAttribute);
         }
+    }
+
+    public int getAttributeLocation(String elementName){
+        return GLES20.glGetAttribLocation(mNativeId, elementName);
+    }
+
+    public int getUniformLocation(String elementName){
+        return GLES20.glGetUniformLocation(mNativeId, elementName);
     }
 
     public void enableVertexAttributes(){
@@ -168,10 +171,11 @@ public class ShaderProgram {
         int format = 0;
         VertexDescriptor vertexDescriptor = new VertexDescriptor(0);
         if(mAttributesMap.containsKey("inPosition")){
-            format |= vertexDescriptor.POSITION_XYZW;
+            format |= vertexDescriptor.POSITION_XYZ;
+            
         }
         if(mAttributesMap.containsKey("inColor")){
-            format |= vertexDescriptor.COLOR_RGBA;
+            format |= vertexDescriptor.COLOR_RGB;
         }
         vertexDescriptor.setFormat(format);
         return vertexDescriptor;

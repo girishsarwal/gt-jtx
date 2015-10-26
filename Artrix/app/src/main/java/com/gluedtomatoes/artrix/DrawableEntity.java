@@ -1,6 +1,7 @@
 package com.gluedtomatoes.artrix;
 
 import android.graphics.Point;
+import android.opengl.GLES20;
 
 import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
@@ -10,12 +11,13 @@ import java.nio.ShortBuffer;
  */
 public class DrawableEntity extends Entity implements Renderable{
     protected FloatBuffer vertexBuffer;
-    protected FloatBuffer textureBuffer;
     protected ShortBuffer indexBuffer;
+
+    protected int[] buffers;
 
     protected int mVertexCount = 0;
     protected int mTriangleCount = 0;
-    protected int mVertexStride = 0;
+    protected int mIndexCount = 0;
 
     protected boolean mVisible;
     protected Vector3 mPosition;
@@ -23,11 +25,11 @@ public class DrawableEntity extends Entity implements Renderable{
     protected float mRotation;
     protected ShaderProgram mShadingProgram;
 
-    private VertexDescriptor mVertexDescriptor;
+    protected VertexDescriptor mVertexDescriptor;
 
     DrawableEntity(){
         this("simple");
-
+        buffers = new int[2];
         mPosition = new Vector3();
         mRotation = 0.0f;
         mSize = new Vector3();
@@ -86,16 +88,9 @@ public class DrawableEntity extends Entity implements Renderable{
     @Override
     public void init()
     {
-        mVertexCount = vertexBuffer.remaining();
+
+
         mIsInitialized = true;
-
-        /** the idea here is to read the shader and see whatever components are available in the shader
-         * once we have all the components available, we determine the vertex format that the drawable should be using
-         */
-        mShadingProgram.use();
-        mVertexDescriptor =  mShadingProgram.createSuitableVertexFormat();
-
-
     }
 
     @Override
