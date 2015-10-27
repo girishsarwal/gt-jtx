@@ -6,4 +6,4 @@
  void main() {
     gl_Position = inPosition;
     vColor = inColor;
- };
+ }

@@ -19,6 +19,7 @@ public class ArtrixView extends GLSurfaceView implements GLSurfaceView.Renderer{
         mContext = context;
         setEGLContextClientVersion(2);
         RenderQueue = new RenderQueue();
+        super.setEGLConfigChooser(8 , 8, 8, 8, 16, 0);
         setRenderer(this);
     }
 
