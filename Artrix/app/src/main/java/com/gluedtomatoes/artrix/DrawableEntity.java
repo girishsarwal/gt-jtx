@@ -23,19 +23,17 @@ public class DrawableEntity extends Entity implements Renderable{
     protected Vector3 mPosition;
     protected Vector3 mSize;
     protected float mRotation;
+
     protected ShaderProgram mShadingProgram;
 
     protected VertexDescriptor mVertexDescriptor;
 
     DrawableEntity(){
-        this("simple");
         buffers = new int[2];
         mPosition = new Vector3();
         mRotation = 0.0f;
         mSize = new Vector3();
         mVisible = true;
-
-        mVertexDescriptor = new VertexDescriptor(VertexDescriptor.POSITION_XYZW | VertexDescriptor.COLOR_RGBA);
     }
     public DrawableEntity(String shader){
         setShadingProgram(shader);
@@ -88,8 +86,6 @@ public class DrawableEntity extends Entity implements Renderable{
     @Override
     public void init()
     {
-
-
         mIsInitialized = true;
     }
 

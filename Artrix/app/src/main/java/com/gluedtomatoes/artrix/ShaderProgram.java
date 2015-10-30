@@ -9,7 +9,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
-import java.util.Iterator;
 
 /**
  * Created by gsarwal on 9/14/2015.
@@ -109,6 +108,7 @@ public class ShaderProgram {
                 shader = 0;
             }
         }
+        Log.i("SHADER_COMPILER", "Shader " + resource + "Compiled successfully!");
         return shader;
     }
 
@@ -127,6 +127,7 @@ public class ShaderProgram {
                 program = 0;
             }
         }
+        Log.i("PROGRAM_COMPILER", "Shader Program Linked successfully!");
         return program;
     }
 
@@ -134,6 +135,12 @@ public class ShaderProgram {
     private void fetchAttributes() {
         fetchAttribute("inPosition");
         fetchAttribute("inColor");
+        fetchAttribute("inTex0");
+        fetchAttribute("inTex1");
+        fetchAttribute("inTex2");
+        fetchAttribute("inTex3");
+        fetchAttribute("inNormal");
+        fetchAttribute("inTangent");
     }
 
     /**TODO: move to a separate class so we do not have to keep passing name **/
@@ -153,10 +160,12 @@ public class ShaderProgram {
         return GLES20.glGetUniformLocation(mNativeId, elementName);
     }
 
-    public void enableVertexAttributes(){
+    public void applyVertexAttribute(VertexDescriptor descriptor){
         use();
-        for(int value: mAttributesMap.values()){
-            GLES20.glEnableVertexAttribArray(value);
+        for(String key: mAttributesMap.keySet()){
+            GLES20.glEnableVertexAttribArray(mAttributesMap.get(key));
+            VertexAttribute vattr = descriptor.getVertexAttribute(key);
+            GLES20.glVertexAttribPointer(getAttributeLocation(key), vattr.mElementSize, vattr.mType, vattr.mNormalized, descriptor.getStride(), vattr.mOffsetInStream);
         }
     }
 
@@ -171,11 +180,14 @@ public class ShaderProgram {
         int format = 0;
         VertexDescriptor vertexDescriptor = new VertexDescriptor(0);
         if(mAttributesMap.containsKey("inPosition")){
-            format |= vertexDescriptor.POSITION_XYZ;
+            format |= vertexDescriptor.POSITION;
             
         }
         if(mAttributesMap.containsKey("inColor")){
             format |= vertexDescriptor.COLOR_RGB;
+        }
+        if(mAttributesMap.containsKey("inTex0")){
+            format |= vertexDescriptor.TEX0;
         }
         vertexDescriptor.setFormat(format);
         return vertexDescriptor;

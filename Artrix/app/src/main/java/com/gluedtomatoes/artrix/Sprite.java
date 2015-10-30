@@ -11,6 +11,10 @@ import java.nio.ByteOrder;
 public class Sprite extends DrawableEntity  {
 
     private static float vertices[]={
+            /*-1.0f, 1.0f, 0.0f, 1.0f,
+            -1.0f, -1.0f, 0.0f, 0.0f,
+            1.0f, -1.0f, 1.0f, 0.0f,
+            1.0f, 1.0f, 1.0f, 1.0f*/
             -0.95f, 0.95f, 0.0f, 1.0f, 0.0f, 0.0f,
             -0.95f, -0.95f, 0.0f, 0.0f, 0.0f, 1.0f,
             0.95f, -0.95f, 0.0f, 0.0f, 1.0f, 0.0f,
@@ -24,6 +28,13 @@ public class Sprite extends DrawableEntity  {
 
     @Override
     public void init() {
+        //mVertexDescriptor = VertexDescriptor.VF_SPRITE;
+        mVertexDescriptor = PredefinedVertexDescriptors.VF_POSITION_COLOR;
+
+        //setShadingProgram("sprite");
+        setShadingProgram("simple");
+
+
         ByteBuffer bbv = ByteBuffer.allocateDirect(vertices.length * VertexDescriptor.SIZE_OF_FLOAT);
 
         bbv.order(ByteOrder.nativeOrder());
@@ -44,7 +55,7 @@ public class Sprite extends DrawableEntity  {
         mTriangleCount = mIndexCount/3;
 
         mShadingProgram.use();
-        mVertexDescriptor =  mShadingProgram.createSuitableVertexFormat();
+        //mVertexDescriptor =  mShadingProgram.createSuitableVertexFormat();
 
         /** generate the buffers **/
         GLES20.glGenBuffers(2, buffers, 0);
@@ -60,17 +71,7 @@ public class Sprite extends DrawableEntity  {
 
     @Override
     public void render() {
-        mShadingProgram.enableVertexAttributes();
-
-        GLES20.glVertexAttribPointer(mShadingProgram.getAttributeLocation("inPosition"), 3,
-                GLES20.GL_FLOAT, false,
-                mVertexDescriptor.getStride(), 0);
-
-        GLES20.glVertexAttribPointer(mShadingProgram.getAttributeLocation("inColor"), 3,
-                GLES20.GL_FLOAT, false,
-                mVertexDescriptor.getStride(), 12);
-
-        //GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, mVertexCount);
+        mShadingProgram.applyVertexAttribute(mVertexDescriptor);
         GLES20.glDrawElements(GLES20.GL_TRIANGLES, mIndexCount, GLES20.GL_UNSIGNED_SHORT, 0);
         super.render();
         mShadingProgram.disableVertexAttributes();
