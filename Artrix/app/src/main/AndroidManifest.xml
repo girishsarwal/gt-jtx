@@ -21,7 +21,13 @@
                 android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
                 android:resource="@xml/device_filter" />
         </activity>
+        <receiver android:name=".BootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
         <uses-feature android:glEsVersion="0x00020000" android:required="true" />
+        <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     </application>
 
 </manifest>
