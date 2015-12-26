@@ -1,1 +1,0 @@
-sudo avrdude -cusbasp -pm8 -B20 -e
