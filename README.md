@@ -31,26 +31,5 @@ You can clone the repo, build and flash the firmware to the ATMEGA chip. For hav
 - A radio module. I use Fr-Sky (bought from hobbyking) but you can use any as long as it has PPM input. Get one here
 - m8 version programmed on the ATMEGA 8
 
-# The ATMEGA32 version
-
-m32 is an advanced version with two parts, the brain and the controller. 
-The brain is reponsible for the ppm signal generations, whereas the controller takes care of the 'pn ground' activities such as model management, pilot settings etc
-
-A 3D joystick - I used Thrustmaster HOTAS 3D for this advanced version.
-The gt-jtx-m32 board fabricated. This is simple if you know PCB etching, if not, its fun learning. Schematics in the hardware section
-
-- A 3D Joystick
-- An ATMEGA 32, 
-- An LED, 
-- A 10K resistor, 
-- Berg strips, one M/F pair is enough, Loads of wires for routing.
-- A USBASP Atmel programmer. If you have one, good; If not you can send over your chip, I will have it flashed. Usbasp
-- A radio module. I use Fr-Sky (bought from hobbyking) but you can use any as long as it has PPM input. 
-- An Android device with USB OTG support - choose your screen size!
-- A CP2012 USB<->USART bridge
-- gt-jtx m32 programmed onto the ATMEGA32 board
-- Artrix App loaded on the Android device
-- Loads of wires for routing
-
 # Disclaimer
 I take no responsibility or warranty for any damage to you or your equipment, that may arise out of or is a consequence of using or reproducing any parts or features of the gt-jtx software/hardware system. Everything you do is completely at your own risk and expense.

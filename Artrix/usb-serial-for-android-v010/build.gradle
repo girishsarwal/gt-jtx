@@ -1,2 +1,0 @@
-configurations.create("default")
-artifacts.add("default", file('usb-serial-for-android-v010.jar'))
