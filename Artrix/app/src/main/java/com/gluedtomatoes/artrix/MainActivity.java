@@ -61,6 +61,10 @@ public class MainActivity extends Activity implements StateMachine{
         setContentView(surface);
     }
 
+    @Override
+    public void onBackPressed(){
+        //Do nothing
+    }
 
     @Override
     public State getCurrentState() {

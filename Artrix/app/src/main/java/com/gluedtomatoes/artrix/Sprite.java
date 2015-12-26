@@ -11,14 +11,14 @@ import java.nio.ByteOrder;
 public class Sprite extends DrawableEntity  {
 
     private static float vertices[]={
-            -0.5f, 0.5f, 0.0f, 1.0f,
+            /*-0.5f, 0.5f, 0.0f, 1.0f,
             -0.5f, -0.5f, 0.0f, 0.0f,
             0.5f, -0.5f, 1.0f, 0.0f,
-            0.5f, 0.5f, 1.0f, 1.0f,
-            /*-0.95f, 0.95f, 0.0f, 1.0f, 0.0f, 0.0f,
+            0.5f, 0.5f, 1.0f, 1.0f,*/
+            -0.95f, 0.95f, 0.0f, 1.0f, 0.0f, 0.0f,
             -0.95f, -0.95f, 0.0f, 0.0f, 0.0f, 1.0f,
             0.95f, -0.95f, 0.0f, 0.0f, 1.0f, 0.0f,
-            0.95f, 0.95f, 0.0f, 1.0f, 1.0f, 1.0f,*/
+            0.95f, 0.95f, 0.0f, 1.0f, 1.0f, 1.0f,
     };
 
     private static short indices[] = {
@@ -29,10 +29,10 @@ public class Sprite extends DrawableEntity  {
     @Override
     public void init() {
         mVertexDescriptor = PredefinedVertexDescriptors.VF_SPRITE;
-        //mVertexDescriptor = PredefinedVertexDescriptors.VF_POSITION_COLOR;
+        mVertexDescriptor = PredefinedVertexDescriptors.VF_POSITION_COLOR;
 
         setShadingProgram("sprite");
-        //setShadingProgram("simple");
+        setShadingProgram("simple");
 
 
         ByteBuffer bbv = ByteBuffer.allocateDirect(vertices.length * VertexDescriptor.SIZE_OF_FLOAT);
