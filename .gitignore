@@ -1,4 +1,5 @@
 *.suo
 *.eep
 *.hex
-
+*.ly*
+_trace.dat
