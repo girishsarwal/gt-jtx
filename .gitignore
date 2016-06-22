@@ -3,3 +3,14 @@
 *.hex
 *.ly*
 _trace.dat
+__auto.mak
+_gcc.out
+*.cof
+*.elf
+*.lss
+*.map
+*.sym
+*.d
+*.gcc
+*.lst
+*.o

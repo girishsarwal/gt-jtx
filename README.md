@@ -7,7 +7,7 @@ After a good amount of self provocation, I embarked on the journey of doing a jo
 # How does it work?
 The gt-jtx uses a 3d joystick for controlling an RC airplane. The X axis map to ailerons (roll), Y to Elevator (pitch) and the joystick grip twist/Z axis map to Rudder (Yaw) control. The throttle control has a separate pot on the base of the joystick. Digital push buttons 5-12 on the joystick base are trim switches for the four channels and pressing unique combos on these switches along with power switch navigates through the menu and settings screen.
 
-# The ATMEGA 8 Version
+# ATMEGA 8 Version
 
 m8 is a basic version with support upto 4 analog and 1 digital channel.
 
@@ -30,6 +30,15 @@ You can clone the repo, build and flash the firmware to the ATMEGA chip. For hav
 - A USBASP Atmel programmer. If you have one, good; If not you can send over your chip, I will have it flashed. Usbasp
 - A radio module. I use Fr-Sky (bought from hobbyking) but you can use any as long as it has PPM input. Get one here
 - m8 version programmed on the ATMEGA 8
+
+
+# ATMEGA 32 Version
+
+m32 is a slightly advanced version with support upto 8 analog and 8 digital channel + trims on analog channels.
+
+As of now the microcontroller (ATMEGA 32) generates a PPM stream based on the inputs it receives from the pots. This input can be fed to your choice of radio module or to the trainer port of your Tx.
+m32 uses a separate unit for configuration and management of the joystick The separate program is Artrix and is available here (coming soon)
+
 
 # Disclaimer
 I take no responsibility or warranty for any damage to you or your equipment, that may arise out of or is a consequence of using or reproducing any parts or features of the gt-jtx software/hardware system. Everything you do is completely at your own risk and expense.
