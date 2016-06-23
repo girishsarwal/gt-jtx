@@ -123,6 +123,16 @@ volatile uint8_t idx = 0;
 uint8_t 	eeprom_okay;
 uint8_t 	EEMEM _eeprom_eeprom_okay = 0xA0; //must bear A0 (10100000) for valid eeprom
 
+void eeprom_mark_clean();
+uint8_t eeprom_check_sanity();
+
+
+void settings_new_default();
+void settings_write_to_eeprom();
+void settings_read_from_eeprom();
+void calibration_write_to_eeprom();
+void calibration_read_to_eeprom();
+
 /*****************************************************save_eeprom_ok_status *****************************
 ** marks eeprom as OK
 **/
