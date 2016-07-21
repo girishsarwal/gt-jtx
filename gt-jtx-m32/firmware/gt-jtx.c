@@ -123,6 +123,16 @@ volatile uint8_t idx = 0;
 uint8_t 	eeprom_okay;
 uint8_t 	EEMEM _eeprom_eeprom_okay = 0xA0; //must bear A0 (10100000) for valid eeprom
 
+void eeprom_mark_clean();
+uint8_t eeprom_check_sanity();
+
+
+void settings_new_default();
+void settings_write_to_eeprom();
+void settings_read_from_eeprom();
+void calibration_write_to_eeprom();
+void calibration_read_to_eeprom();
+
 /*****************************************************save_eeprom_ok_status *****************************
 ** marks eeprom as OK
 **/
@@ -227,27 +237,33 @@ void mix_apply_transform(struct mix_t* mix)
 #define MAX_LEN_NAME 16
 #define MAX_MIXES 32
 
-struct mix_t mixes[MAX_MIXES];		/** array of mixes **/
-uint8_t trims[MAX_ANALOG_INPUTS];	/** array of trims **/
+
+
+
+struct model
+{
+	struct mix_t mixes[MAX_MIXES];		/** array of mixes **/
+	uint8_t trims[MAX_ANALOG_INPUTS];	/** array of trims **/
+	
+} model;		//This is the only representation of the model int the system. the list of models will be stored with the frontend.
+				//It is the frontend's responsibility to create a to-fro mechanism for sending model data to gt-jtx over spi
 
 
 void model_new_default()
 {
-	selected_model.num = 1;
-	memcpy(&selected_model.name, "GT-JTX-MODEL 1", 14);
 	/** define a few mixes **/
-	memset(&selected_model.trims, 100, MAX_ANALOG_INPUTS);
+	memset(&model.trims, 100, MAX_ANALOG_INPUTS);
 };
 
-void model_load_from_eeprom(uint8_t model)
+void model_load_from_eeprom()
 {
 	
 };
-void model_save_to_eeprom(uint8_t model)
+void model_save_to_eeprom()
 {
 	
 };
-void model_save_trim(uint8_t model, uint8_t channel)
+void model_save_trim(uint8_t channel)
 {
 
 };
@@ -388,7 +404,7 @@ int main(){
 		/** apply the mixes **/
 		uint8_t idx_mixes = -1;
 		while(++idx_mixes < MAX_MIXES){
-				mix_apply_transform(&selected_model.mixes[idx_mixes]);
+				mix_apply_transform(&model.mixes[idx_mixes]);
 		};
 	}
 };
@@ -424,10 +440,10 @@ void calibrate_channel(uint8_t ch){
 ** trim values
 **/
 void increment_trim(uint8_t ch){
-	if(++(selected_model.trims[ch]) > TRIM_UPPER_END){
-		(selected_model.trims[ch]) = TRIM_UPPER_END;
+	if(++(model.trims[ch]) > TRIM_UPPER_END){
+		(model.trims[ch]) = TRIM_UPPER_END;
 	}
-	model_save_trim(selected_model.num, ch);
+	model_save_trim(ch);
 }
 
 /**************************************** decrement_trim *****************************
@@ -435,10 +451,10 @@ void increment_trim(uint8_t ch){
 ** trim values
 **/
 void decrement_trim(uint8_t ch){
-	if(selected_model.trims[ch] > 0 && --selected_model.trims[ch]<= TRIM_LOWER_END){
-		selected_model.trims[ch] = TRIM_LOWER_END;
+	if(model.trims[ch] > 0 && --model.trims[ch]<= TRIM_LOWER_END){
+		model.trims[ch] = TRIM_LOWER_END;
 	}
-	model_save_trim(selected_model.num, ch);
+	model_save_trim( ch);
 }
 
 
@@ -469,7 +485,7 @@ void read_switch(uint8_t ch, uint8_t port, uint8_t pin){
 	volatile uint8_t value = get_key_pressed(port, pin);
 	//volatile uint8_t value = (get_key_pressed(port, pin) ^ ((reverse & mask) == mask)) ? 1 : 0;
 
-	output_ppm[ch] = g_settings.min_signal_width_us + (value * (float)signal_traversal_us) + selected_model.trims[ch];
+	output_ppm[ch] = g_settings.min_signal_width_us + (value * (float)signal_traversal_us) + model.trims[ch];
 }
 
 /**************************************** micros_to_ticks *****************************
@@ -605,7 +621,7 @@ void spi_process_get_message(){
         	transaction.result = (output_ppm[(transaction.data0 >> 4)]);
         	break;
    	case GETT:
-   		transaction.result = (selected_model.trims[(transaction.data0 >> 4)]);
+   		transaction.result = (model.trims[(transaction.data0 >> 4)]);
    		break;
 	   case GETREV:
 			//transaction.result = reverse >> (transaction.data0 >> 4);
@@ -728,6 +744,7 @@ void memset16(uint16_t* a, uint16_t value, uint8_t size){
 		a[index] = value;
 	};
 };
+
 
 
 
