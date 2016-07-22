@@ -43,6 +43,15 @@
 
 #define MAX_DIGITAL_INPUTS 8
 
+#define PIN0		0
+#define PIN1		1
+#define PIN2		2
+#define PIN3		3
+#define PIN4		4
+#define PIN5		5
+#define PIN6		6
+#define PIN7		7
+
 #define NUM_PHYSICAL_INPUTS (MAX_ANALOG_INPUTS + MAX_DIGITAL_INPUTS)
 
 #define VINP0		16
@@ -166,9 +175,8 @@ struct settings_t
 
 struct settings_t g_settings = {0};
 struct settings_t EEMEM _eeprom_g_settings = {252, 700, 1700, 300, 22500, 16,
-																{0, 0, 0, 0, 0, 0, 0, 0},
-																{1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-															};																																
+											  {0, 0, 0, 0, 0, 0, 0, 0},
+											  {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}};
 
 void settings_new_default()
 {
@@ -300,7 +308,7 @@ enum OPCODE
 enum STATE
 {
    WAIT_RESET  = 0x00,
-	WAIT_OPCODE = 0x01,
+   WAIT_OPCODE = 0x01,
    WAIT_HIBYTE = 0x02,
    WAIT_LOBYTE = 0x03,
 };
@@ -391,15 +399,15 @@ int main(){
 		read_ad_channel_value(INP7);
 		read_ad_channel_value(INP8);
 
-      /** read digital inputs **/
-		read_switch(INP9, PORTD, 4);
-		read_switch(INP10, PORTD, 6);
-		read_switch(INP11, PORTD, 7);
-		read_switch(INP12, PORTB, 0);
-		read_switch(INP13, PORTB, 1);
-		read_switch(INP14, PORTB, 2);
-		read_switch(INP15, PORTB, 3);
-		read_switch(INP16, PORTB, 4);
+		/** read digital inputs **/
+		read_switch(INP9, PORTD, PIN4);
+		read_switch(INP10, PORTD, PIN6);
+		read_switch(INP11, PORTD, PIN7);
+		read_switch(INP12, PORTB, PIN0);
+		read_switch(INP13, PORTB, PIN1);
+		read_switch(INP14, PORTB, PIN2);
+		read_switch(INP15, PORTB, PIN3);
+		read_switch(INP16, PORTB, PIN4);
 
 		/** apply the mixes **/
 		uint8_t idx_mixes = -1;
