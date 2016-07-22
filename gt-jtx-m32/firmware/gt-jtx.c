@@ -126,7 +126,7 @@
 
 volatile uint16_t input_hw_controls[NUM_INPUTS];	/** stores the sensor values, pots or switches **/
 volatile uint16_t *output_ppm = 0;		/** stores the final output ppm sent to the rf module **/
-
+volatile uint8_t g_error = 0;			/** startup errors **/
 volatile uint8_t idx = 0;
 
 uint8_t 	eeprom_okay;
@@ -349,7 +349,9 @@ ISR(TIMER1_COMPA_vect); /**PPM time elapsed **/
 
 int main(){
 	setup_hardware();
-   /** check EEPROM Sanity **/
+
+
+	/** check EEPROM Sanity **/
 	if(!eeprom_check_sanity()){
 		/** create default settings **/	
 		settings_new_default();
@@ -367,7 +369,7 @@ int main(){
 		}
 		/** instruct the SPI to be sending back CALIBRATION_REQUIRED state **/
 		/** do nothing**/
-      transaction.result = E_CALIBRATION_REQUIRED;
+		transaction.result = E_CALIBRATION_REQUIRED;
 	}
 	
 	calculate_signal_params();	
