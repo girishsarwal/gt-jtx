@@ -85,13 +85,13 @@
 #define TRIM_CENTER 100
 
 #define SIG_TRIM_CH1_PLUS 		0
-#define SIG_TRIM_CH1_MINUS 	1
+#define SIG_TRIM_CH1_MINUS 		1
 #define SIG_TRIM_CH2_PLUS 		2
-#define SIG_TRIM_CH2_MINUS 	3
+#define SIG_TRIM_CH2_MINUS 		3
 #define SIG_TRIM_CH3_PLUS 		4
-#define SIG_TRIM_CH3_MINUS 	5
+#define SIG_TRIM_CH3_MINUS 		5
 #define SIG_TRIM_CH4_PLUS 		6
-#define SIG_TRIM_CH4_MINUS 	7
+#define SIG_TRIM_CH4_MINUS 		7
 
 #define PORT_ANALOG	PORTA
 #define DDR_ANALOG	DDRA
@@ -114,7 +114,7 @@
 
 
 #define SIG_PPM		5
-#define SIG_SPEAK		6
+#define SIG_SPEAK	6
 #define SIG_MENU_KEY 7
 
 
@@ -245,31 +245,20 @@ void mix_apply_transform(struct mix_t* mix)
 #define MAX_LEN_NAME 16
 #define MAX_MIXES 32
 
-
-
-
 struct model
 {
 	struct mix_t mixes[MAX_MIXES];		/** array of mixes **/
 	uint8_t trims[MAX_ANALOG_INPUTS];	/** array of trims **/
-	
 } model;		//This is the only representation of the model int the system. the list of models will be stored with the frontend.
 				//It is the frontend's responsibility to create a to-fro mechanism for sending model data to gt-jtx over spi
 
-
-void model_new_default()
-{
-	/** define a few mixes **/
-	memset(&model.trims, 100, MAX_ANALOG_INPUTS);
-};
-
 void model_load_from_eeprom()
 {
-	
+	/** this function must deserialize the current model settings from the eeprom **/
 };
 void model_save_to_eeprom()
 {
-	
+	/** this function will serialize the current model settings to the eeprom **/
 };
 void model_save_trim(uint8_t channel)
 {
@@ -277,32 +266,35 @@ void model_save_trim(uint8_t channel)
 };
 
 /** spi communication **/
+/** refer to gt-jtx docs for a complete spi dictionary **/
 enum OPCODE
 {
-	NOP = 0x00,        /** a NOP request will send back the status code to master, if no error, then NOP will be sent back **/
-
-   SETTUP = 0x01,     /** set up trim **/
-   SETTDN = 0x02,     /** set down trim **/
-   GETT = 0x03,       /** get trim **/
-   SETREV = 0x04,     /** set signal reverse **/
-   GETREV = 0x05,
-   SCUP = 0x06,
-   GCUP = 0x07,
-   SCDN = 0x08,
-   GCDN = 0x09,
-   SPPMLEN = 0x0A,
-   GPPMLEN = 0x0B,
-   SPPMICL = 0x0C,
-   GPPMICL = 0x0D,
-   SSTIM = 0x0E,
-   GSTIM = 0x0F,
+   SETTUP = 0x01,		/** set up trim **/
+   SETTDN = 0x02,     	/** set down trim **/
+   GETT = 0x03,       	/** get trim **/
+   SETREV = 0x04,     	/** set signal reverse **/
+   GETREV = 0x05,	 	/** get signal reverse **/
+   SCUP = 0x06,			/** set calibration upper **/
+   GCUP = 0x07,			/** get calibration upper **/
+   SCDN = 0x08,			/** set calibration lower **/
+   GCDN = 0x09,			/** get calibration lower **/
+   SPPMLEN = 0x0A,		/** set PPM length **/
+   GPPMLEN = 0x0B,		/** get PPM length **/
+   SPPMICL = 0x0C,		/** set PPM Inter-Channel Length, default is 300us **/
+   GPPMICL = 0x0D,		/** get PPM Inter-Channel Length **/
+   SSTIM = 0x0E,		/** set servo timing **/
+   GSTIM = 0x0F,		/** get servo timing **/
    GCV = 0x10,
 
-	/** everything above 0xE* is control or error state, 32 signals can be sent back **/
+   /** everything above 0xE0 is control state, 16 signals can be sent back **/
 
-   BAD_EEPROM = 0xFE,
-	CALIBRATION_REQUIRED = 0xFD,
-   RESET = 0xFF,
+   /** everything above 0xF0 is error state, 16 signals can be sent back **/
+   E_BAD_EEPROM = 0xFE,
+   E_CALIBRATION_REQUIRED = 0xFD,
+   E_NO_MODEL_DEFINED = 0xFC,
+
+   NOP = 0x00,        /** a NOP request will send back the status code to master, if no error, then NOP will be sent back **/
+   RESET = 0xFF,	  /** 0xFF is unique code. When gt-jtx gets this signal, it will cause a reset on all values akin to a boot**/
 };
 
 enum STATE
