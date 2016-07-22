@@ -43,6 +43,15 @@
 
 #define MAX_DIGITAL_INPUTS 8
 
+#define PIN0		0
+#define PIN1		1
+#define PIN2		2
+#define PIN3		3
+#define PIN4		4
+#define PIN5		5
+#define PIN6		6
+#define PIN7		7
+
 #define NUM_PHYSICAL_INPUTS (MAX_ANALOG_INPUTS + MAX_DIGITAL_INPUTS)
 
 #define VINP0		16
@@ -76,13 +85,13 @@
 #define TRIM_CENTER 100
 
 #define SIG_TRIM_CH1_PLUS 		0
-#define SIG_TRIM_CH1_MINUS 	1
+#define SIG_TRIM_CH1_MINUS 		1
 #define SIG_TRIM_CH2_PLUS 		2
-#define SIG_TRIM_CH2_MINUS 	3
+#define SIG_TRIM_CH2_MINUS 		3
 #define SIG_TRIM_CH3_PLUS 		4
-#define SIG_TRIM_CH3_MINUS 	5
+#define SIG_TRIM_CH3_MINUS 		5
 #define SIG_TRIM_CH4_PLUS 		6
-#define SIG_TRIM_CH4_MINUS 	7
+#define SIG_TRIM_CH4_MINUS 		7
 
 #define PORT_ANALOG	PORTA
 #define DDR_ANALOG	DDRA
@@ -105,7 +114,7 @@
 
 
 #define SIG_PPM		5
-#define SIG_SPEAK		6
+#define SIG_SPEAK	6
 #define SIG_MENU_KEY 7
 
 
@@ -117,7 +126,7 @@
 
 volatile uint16_t input_hw_controls[NUM_INPUTS];	/** stores the sensor values, pots or switches **/
 volatile uint16_t *output_ppm = 0;		/** stores the final output ppm sent to the rf module **/
-
+volatile uint8_t g_error = 0;			/** startup errors **/
 volatile uint8_t idx = 0;
 
 uint8_t 	eeprom_okay;
@@ -166,9 +175,8 @@ struct settings_t
 
 struct settings_t g_settings = {0};
 struct settings_t EEMEM _eeprom_g_settings = {252, 700, 1700, 300, 22500, 16,
-																{0, 0, 0, 0, 0, 0, 0, 0},
-																{1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-															};																																
+											  {0, 0, 0, 0, 0, 0, 0, 0},
+											  {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}};
 
 void settings_new_default()
 {
@@ -237,31 +245,19 @@ void mix_apply_transform(struct mix_t* mix)
 #define MAX_LEN_NAME 16
 #define MAX_MIXES 32
 
-
-
-
 struct model
 {
 	struct mix_t mixes[MAX_MIXES];		/** array of mixes **/
 	uint8_t trims[MAX_ANALOG_INPUTS];	/** array of trims **/
-	
 } model;		//This is the only representation of the model int the system. the list of models will be stored with the frontend.
 				//It is the frontend's responsibility to create a to-fro mechanism for sending model data to gt-jtx over spi
-
-
-void model_new_default()
-{
-	/** define a few mixes **/
-	memset(&model.trims, 100, MAX_ANALOG_INPUTS);
-};
-
 void model_load_from_eeprom()
 {
-	
+	/** this function must deserialize the current model settings from the eeprom **/
 };
 void model_save_to_eeprom()
 {
-	
+	/** this function will serialize the current model settings to the eeprom **/
 };
 void model_save_trim(uint8_t channel)
 {
@@ -269,38 +265,41 @@ void model_save_trim(uint8_t channel)
 };
 
 /** spi communication **/
+/** refer to gt-jtx docs for a complete spi dictionary **/
 enum OPCODE
 {
-	NOP = 0x00,        /** a NOP request will send back the status code to master, if no error, then NOP will be sent back **/
-
-   SETTUP = 0x01,     /** set up trim **/
-   SETTDN = 0x02,     /** set down trim **/
-   GETT = 0x03,       /** get trim **/
-   SETREV = 0x04,     /** set signal reverse **/
-   GETREV = 0x05,
-   SCUP = 0x06,
-   GCUP = 0x07,
-   SCDN = 0x08,
-   GCDN = 0x09,
-   SPPMLEN = 0x0A,
-   GPPMLEN = 0x0B,
-   SPPMICL = 0x0C,
-   GPPMICL = 0x0D,
-   SSTIM = 0x0E,
-   GSTIM = 0x0F,
+   SETTUP = 0x01,		/** set up trim **/
+   SETTDN = 0x02,     	/** set down trim **/
+   GETT = 0x03,       	/** get trim **/
+   SETREV = 0x04,     	/** set signal reverse **/
+   GETREV = 0x05,	 	/** get signal reverse **/
+   SCUP = 0x06,			/** set calibration upper **/
+   GCUP = 0x07,			/** get calibration upper **/
+   SCDN = 0x08,			/** set calibration lower **/
+   GCDN = 0x09,			/** get calibration lower **/
+   SPPMLEN = 0x0A,		/** set PPM length **/
+   GPPMLEN = 0x0B,		/** get PPM length **/
+   SPPMICL = 0x0C,		/** set PPM Inter-Channel Length, default is 300us **/
+   GPPMICL = 0x0D,		/** get PPM Inter-Channel Length **/
+   SSTIM = 0x0E,		/** set servo timing **/
+   GSTIM = 0x0F,		/** get servo timing **/
    GCV = 0x10,
 
-	/** everything above 0xE* is control or error state, 32 signals can be sent back **/
+   /** everything above 0xE0 is control state, 16 signals can be sent back **/
 
-   BAD_EEPROM = 0xFE,
-	CALIBRATION_REQUIRED = 0xFD,
-   RESET = 0xFF,
+   /** everything above 0xF0 is error state, 16 signals can be sent back **/
+   E_BAD_EEPROM = 0xFE,
+   E_CALIBRATION_REQUIRED = 0xFD,
+   E_NO_MODEL_DEFINED = 0xFC,
+
+   NOP = 0x00,        /** a NOP request will send back the status code to master, if no error, then NOP will be sent back **/
+   RESET = 0xFF,	  /** 0xFF is unique code. When gt-jtx gets this signal, it will cause a reset on all values akin to a boot**/
 };
 
 enum STATE
 {
    WAIT_RESET  = 0x00,
-	WAIT_OPCODE = 0x01,
+   WAIT_OPCODE = 0x01,
    WAIT_HIBYTE = 0x02,
    WAIT_LOBYTE = 0x03,
 };
@@ -349,7 +348,9 @@ ISR(TIMER1_COMPA_vect); /**PPM time elapsed **/
 
 int main(){
 	setup_hardware();
-   /** check EEPROM Sanity **/
+
+
+	/** check EEPROM Sanity **/
 	if(!eeprom_check_sanity()){
 		/** create default settings **/	
 		settings_new_default();
@@ -367,7 +368,7 @@ int main(){
 		}
 		/** instruct the SPI to be sending back CALIBRATION_REQUIRED state **/
 		/** do nothing**/
-      transaction.result = CALIBRATION_REQUIRED;
+		transaction.result = E_CALIBRATION_REQUIRED;
 	}
 	
 	calculate_signal_params();	
@@ -391,15 +392,15 @@ int main(){
 		read_ad_channel_value(INP7);
 		read_ad_channel_value(INP8);
 
-      /** read digital inputs **/
-		read_switch(INP9, PORTD, 4);
-		read_switch(INP10, PORTD, 6);
-		read_switch(INP11, PORTD, 7);
-		read_switch(INP12, PORTB, 0);
-		read_switch(INP13, PORTB, 1);
-		read_switch(INP14, PORTB, 2);
-		read_switch(INP15, PORTB, 3);
-		read_switch(INP16, PORTB, 4);
+		/** read digital inputs **/
+		read_switch(INP9, PORTD, PIN4);
+		read_switch(INP10, PORTD, PIN6);
+		read_switch(INP11, PORTD, PIN7);
+		read_switch(INP12, PORTB, PIN0);
+		read_switch(INP13, PORTB, PIN1);
+		read_switch(INP14, PORTB, PIN2);
+		read_switch(INP15, PORTB, PIN3);
+		read_switch(INP16, PORTB, PIN4);
 
 		/** apply the mixes **/
 		uint8_t idx_mixes = -1;
