@@ -367,7 +367,7 @@ int main(){
 		}
 		/** instruct the SPI to be sending back CALIBRATION_REQUIRED state **/
 		/** do nothing**/
-      transaction.result = CALIBRATION_REQUIRED;
+      transaction.result = E_CALIBRATION_REQUIRED;
 	}
 	
 	calculate_signal_params();	
