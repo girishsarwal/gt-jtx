@@ -159,10 +159,11 @@ typedef struct {
 
 typedef struct {
 	uint8_t uuid[4];					/** 4 bytes of uuid **/
-	MIX mixes[MAX_MIXES];		/** array of mixes **/
+	MIX mixes[MAX_MIXES];				/** array of mixes **/
 	uint8_t trims[MAX_ANALOG_INPUTS];	/** array of trims **/
-} MODEL, *PMODEL;		//This is the only representation of the model int the system. the list of models will be stored with the client.
-				//It is the client's responsibility to create a to-fro mechanism for sending model data to gt-jtx over spi
+	uint8_t cbSize;						/** size of this model **/
+} MODEL, *PMODEL;
+				
 
 /** spi communication **/
 /** refer to gt-jtx docs for a complete spi dictionary **/
@@ -267,6 +268,8 @@ void model_save_trim(ch);
 
 /***************************************** Business Objects *****************************************/
 
+void runtime_new (uint8_t debug);
+
 void model_write_to_eeprom(PMODEL);
 void model_read_from_eeprom(PMODEl);
 
@@ -287,13 +290,8 @@ ISR(TIMER1_COMPA_vect); /**PPM time elapsed **/
 
 int main(void){
 	
-	runtime_new(&runtime);
-
+	runtime_new(1);                        	
 	setup_hardware();
-
-	while(1){
-	}
-	
 	calculate_signal_params();	
 	reset();
 	/**Enable global interrupts **/
@@ -424,7 +422,8 @@ uint16_t micros_to_ticks(uint16_t value){
 ** Calculates the signal limits and other values used in deciding the final ppm signal
 **/
 void calculate_signal_params(){
-	runtime.mid_signal_width_us = ((runtime.settings.max_signal_width_us + runtime.settings.max_signal_width_us)/2) + TRIM_CENTER;
+
+	runtime.mid_signal_width_us = ((runtime.settings.min_signal_width_us + runtime.settings.max_signal_width_us)/2) + TRIM_CENTER;
 	runtime.sync_signal_width_us = (runtime.settings.frame_width_us - (NUM_OUTPUTS * (runtime.mid_signal_width_us + runtime.settings.inter_channel_width_us))); /**whatever is left **/
 	runtime.signal_traversal_us = runtime.settings.max_signal_width_us - runtime.settings.min_signal_width_us;
 };
@@ -465,7 +464,7 @@ void setup_hardware(){
  	
  	/**PORTC is LCD_DATA, let the lcd library take care of it **/
  	
- 	/** PORTD has D:0-D:4 for LCD_CTRL, make D5 (MENU), D6 (SPEAKER), D7 (PPM) as output pins **/
+ 	/** PORTD has D:0-D:4 for LCD_CTRL, make D5 (PPM), D6 (SPEAKER), D7 (MENU) as output pins **/
  	DDR_MENU &= ~(1 << SIG_MENU_KEY);					/** D:7 is MENU KEY = 0**/
  	PORT_MENU |= (1 << SIG_MENU_KEY);
   	DDR_SPEAK |= (1 << SIG_SPEAK);						/** D:6 is SPEAKER = 1**/
@@ -622,11 +621,26 @@ void spi_process_set_message(void){
    }
 };
 
-void runtime_new(PRUNTIME* rt) {
+void runtime_new (uint8_t debug) {
 	/** any error in this function would mean reporting back to client and shutting down the micro
 	**/
+	memcpy(&runtime, 0, sizeof(RUNTIME));
+	if(debug) {
+		/** load debug values for testing **/
+		runtime.settings.setup_state = 252;
+		runtime.settings.min_signal_width_us = 700;
+		runtime.settings.max_signal_width_us = 1700;
+		runtime.settings.inter_channel_width_us = 300;
+		runtime.settings.frame_width_us = 22500;
+		runtime.settings.num_hw_input = 16;		
+		memset16(&runtime.settings.upper_calibration, 0, MAX_ANALOG_INPUTS);
+		memset16(&runtime.settings.lower_calibration, 1024, MAX_ANALOG_INPUTS);
+		/** create a model for testing **/
+		eeprom_write_block((uint8_t*)0, &runtime.settings, sizeof(SETTINGS));
 
-	memcpy(rt, 0, sizeof(RUNTIME));
+	}
+	/** load data from eeprom **/
+	eeprom_write_block((uint8_t*)0, &runtime.settings, sizeof(SETTINGS));
 }
 
 
@@ -687,5 +701,7 @@ ISR(SPI_STC_vect){
 		}
 	}
 };
+
+
 
 
