@@ -347,7 +347,7 @@ ISR(TIMER1_COMPA_vect); /**PPM time elapsed **/
 /************************************MAIN Routine *****************************************
 */
 
-int main(){
+int main(void){
 	setup_hardware();
 
 
@@ -381,8 +381,6 @@ int main(){
 			/** start the adc **/
 	ADCSRA |= (1<<ADSC);
 	while(1){
-		volatile uint8_t index = -1;
-		
 		/** read analog inputs **/
 		read_ad_channel_value(INP1);
 		read_ad_channel_value(INP2);
@@ -472,8 +470,7 @@ void read_ad_channel_value(uint8_t ch){
 	
 	float calibratedChannelRange = g_settings.upper_calibration[ch] - g_settings.lower_calibration[ch];
 	float stickMoveRatio = (value - g_settings.lower_calibration[ch])/calibratedChannelRange;
-	
-	uint8_t mask = (1 << ch);
+
 	input_hw_controls[ch] = g_settings.min_signal_width_us + ((stickMoveRatio * (float)signal_traversal_us));
 }
 
@@ -483,7 +480,6 @@ void read_ad_channel_value(uint8_t ch){
 **/
 void read_switch(uint8_t ch, uint8_t port, uint8_t pin){
 	
-	volatile uint8_t mask = (1 << ch);
 	volatile uint8_t value = get_key_pressed(port, pin);
 	//volatile uint8_t value = (get_key_pressed(port, pin) ^ ((reverse & mask) == mask)) ? 1 : 0;
 
@@ -656,7 +652,7 @@ void spi_process_get_message(void){
 	* processess an SPI message that is required to write something. A byte is called a message
 	* this will be executed when the RESULT (result) is received on SPI
 **/
-void spi_process_set_message(){
+void spi_process_set_message(void){
  	switch (transaction.opcode)
 	{
 		case NOP:
