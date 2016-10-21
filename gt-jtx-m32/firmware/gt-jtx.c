@@ -18,9 +18,6 @@
 #include <avr/interrupt.h>
 #include <math.h>
 
-#define MAGIC_NUMBER 0xA0
-
-
 #define INP1		0    //Mapped to PA7
 #define INP2		1    //Mapped to PA6
 #define INP3		2    //Mapped to PA5
@@ -124,44 +121,12 @@
 #define LOWORD(x) (x & 0xF)
 
 
-volatile uint16_t input_hw_controls[NUM_INPUTS];	/** stores the sensor values, pots or switches **/
-volatile uint16_t *output_ppm = 0;		/** stores the final output ppm sent to the rf module **/
-volatile uint8_t g_error = 0;			/** startup errors **/
-volatile uint8_t idx = 0;
-
-uint8_t 	eeprom_okay;
-uint8_t 	EEMEM _eeprom_eeprom_okay = 0xA0; //must bear A0 (10100000) for valid eeprom
-
-void eeprom_mark_clean(void);
-uint8_t eeprom_check_sanity(void);
+#define ERROR_FACTORY		1
 
 
-void settings_new_default(void);
-void settings_write_to_eeprom(void);
-void settings_read_from_eeprom(void);
-void calibration_write_to_eeprom(void);
-void calibration_read_to_eeprom(void);
-
-/*****************************************************save_eeprom_ok_status *****************************
-** marks eeprom as OK
-**/
-void eeprom_mark_clean(void)
-{
-	eeprom_write_byte(&_eeprom_eeprom_okay, eeprom_okay);
-};
-/**************************************** check_eeprom_sanity *************************
-** This method checks whether the eeprom is configured for use
-** return false if there is a problem and eeprom needs formatting
-**
-**/
-uint8_t eeprom_check_sanity(void){
-	eeprom_okay = eeprom_read_word(&_eeprom_eeprom_okay);								/** read eeprom status **/
-	return (eeprom_okay == MAGIC_NUMBER);
-}
 
 /** radio settings **/
-struct settings_t
-{
+typedef struct {
 	uint8_t setup_state;
 	uint16_t min_signal_width_us;
 	uint16_t max_signal_width_us;
@@ -170,60 +135,10 @@ struct settings_t
 	uint8_t num_hw_input;		
 	uint16_t upper_calibration[MAX_ANALOG_INPUTS];
 	uint16_t lower_calibration[MAX_ANALOG_INPUTS];
-};
+} SETTINGS, *PSETTINGS;
 
-
-struct settings_t g_settings = {0};
-struct settings_t EEMEM _eeprom_g_settings = {252, 700, 1700, 300, 22500, 16,
-											  {0, 0, 0, 0, 0, 0, 0, 0},
-											  {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}};
-
-void settings_new_default(void)
-{
-	g_settings.setup_state = 252;
-	g_settings.min_signal_width_us = 700;
-	g_settings.max_signal_width_us = 1700;
-	g_settings.inter_channel_width_us = 300;
-	g_settings.frame_width_us = 22500;
-	g_settings.num_hw_input = 16;
-	
-	memset16(&g_settings.upper_calibration, 0, MAX_ANALOG_INPUTS);
-	memset16(&g_settings.lower_calibration, 1024, MAX_ANALOG_INPUTS);
-
-	settings_write_to_eeprom();
-	calibration_write_to_eeprom();
-};
-void settings_write_to_eeprom(void)
-{
-	//eeprom_write_block((void*)&g_settings, (const void*) _eeprom_g_settings, sizeof(settings_t));
-};
-void settings_read_from_eeprom(void)
-{
-	eeprom_read_block((void*)&g_settings , (const void*)&_eeprom_g_settings, sizeof(struct settings_t));
-};
-
-void calibration_write_to_eeprom(void)
-{
-
-};
-
-void calibration_read_to_eeprom(void)
-{
-
-};
-
-/** temporary calculation variables **/
-volatile uint16_t 	signal_traversal_us;
-volatile uint16_t 	mid_signal_width_us;
-volatile uint16_t 	sync_signal_width_us;
-
-static uint8_t channel = 0;
-
-/** models and mixes **/
-
-
-struct mix_t
-{
+/** mix **/
+typedef struct {
 	uint8_t source;			/** source that transform the value, index into the input_hw_controls array **/
 	uint8_t target;			/** target that will be changed, values will be first read and then modified based on mplex and rev
 										 , always an index in the output_ppm array **/
@@ -235,40 +150,31 @@ struct mix_t
 	
 	uint8_t rev_mplex;		/** 1b for rev 3b for mplex = add/mult/replace/invert **/
 	uint8_t offset;			/** a final offset trim that will be applied **/
-};
+} MIX, *PMIX;
 
-void mix_apply_transform(struct mix_t* mix)
-{
-	/** This is the meat of all mixes, every mix when applied will execute this function **/
-};
+/** model **/
 
 #define MAX_LEN_NAME 16
 #define MAX_MIXES 32
 
-struct model
-{
-	struct mix_t mixes[MAX_MIXES];		/** array of mixes **/
+typedef struct {
+	uint8_t uuid[4];					/** 4 bytes of uuid **/
+	MIX mixes[MAX_MIXES];		/** array of mixes **/
 	uint8_t trims[MAX_ANALOG_INPUTS];	/** array of trims **/
-} model;		//This is the only representation of the model int the system. the list of models will be stored with the frontend.
-				//It is the frontend's responsibility to create a to-fro mechanism for sending model data to gt-jtx over spi
-
-void model_load_from_eeprom(void)
-{
-	/** this function must deserialize the current model settings from the eeprom **/
-};
-void model_save_to_eeprom(void)
-{
-	/** this function will serialize the current model settings to the eeprom **/
-};
-void model_save_trim(uint8_t channel)
-{
-
-};
+} MODEL, *PMODEL;		//This is the only representation of the model int the system. the list of models will be stored with the client.
+				//It is the client's responsibility to create a to-fro mechanism for sending model data to gt-jtx over spi
 
 /** spi communication **/
 /** refer to gt-jtx docs for a complete spi dictionary **/
-enum OPCODE
-{
+typedef struct {
+	uint8_t opcode;
+	uint8_t state;
+	uint8_t data0;
+	uint8_t data1;
+	uint16_t result;
+} SPITRANSACTION, *PSPITRANSACTION;
+
+enum OPCODE {
    SETTUP = 0x01,		/** set up trim **/
    SETTDN = 0x02,     	/** set down trim **/
    GETT = 0x03,       	/** get trim **/
@@ -297,26 +203,43 @@ enum OPCODE
    RESET = 0xFF,	  /** 0xFF is unique code. When gt-jtx gets this signal, it will cause a reset on all values akin to a boot**/
 };
 
-enum STATE
-{
+enum STATE {
    WAIT_RESET  = 0x00,
    WAIT_OPCODE = 0x01,
    WAIT_HIBYTE = 0x02,
    WAIT_LOBYTE = 0x03,
 };
 
-struct spitransaction_t
-{
-	uint8_t opcode;
-	uint8_t state;
-	uint8_t data0;
-	uint8_t data1;
-	uint16_t result;
-};
+typedef struct {
+	uint16_t hw_controls[NUM_INPUTS]; /** stores the sensor values, pots or switches **/
+} INPUT, *PINPUT;
+
+typedef struct {
+	uint16_t 	*ppm;		/** stores the final output ppm sent to the rf module **/
+
+} OUTPUT, *POUTPUT;
+
+typedef struct {
+	INPUT input;
+	OUTPUT output;
+
+	uint16_t 	signal_traversal_us;
+	uint16_t 	mid_signal_width_us;
+	uint16_t 	sync_signal_width_us;
+	uint8_t 	error;			/** startup errors **/
+	uint8_t 	channel;
+	uint8_t 	idx;
 
 
-/** SPI State Management and operation variables **/
-volatile struct spitransaction_t transaction;
+	SPITRANSACTION transaction;
+
+	/** from here on everything will be serialized to eeprom **/
+	SETTINGS settings;			/** serialized to eeprom **/
+	MODEL model;				/** serialized to eeprom **/
+} RUNTIME, *PRUNTIME;
+
+
+volatile RUNTIME runtime = {0};
 
 
 /***************************************** Function Declarations *****************************************/
@@ -338,6 +261,21 @@ void calibrate_channel(uint8_t channel);
 
 void memset16(uint16_t* array, uint16_t value, uint8_t size);
 
+void model_save_trim(ch);
+
+
+
+/***************************************** Business Objects *****************************************/
+
+void model_write_to_eeprom(PMODEL);
+void model_read_from_eeprom(PMODEl);
+
+void settings_write_to_eeprom(PSETTINGS);
+void settings_read_from_eeprom(PSETTINGS);
+
+void calibration_write_to_eeprom(void);
+void calibration_read_to_eeprom(void);
+
 
 /***************************************** Interrupt Declarations *****************************************/
 ISR(SPI_STC_vect);     	/**SPI byte received **/
@@ -348,28 +286,12 @@ ISR(TIMER1_COMPA_vect); /**PPM time elapsed **/
 */
 
 int main(void){
+	
+	runtime_new(&runtime);
+
 	setup_hardware();
 
-
-	/** check EEPROM Sanity **/
-	if(!eeprom_check_sanity()){
-		/** create default settings **/	
-		settings_new_default();
-		eeprom_mark_clean();
-		/**give three beeps specifying defautl settings have been loaded **/
-	}
-	/** read back settings from eeprom **/
-	settings_read_from_eeprom();
-
 	while(1){
-		if(!(g_settings.setup_state & 0x01)
-		&& !(g_settings.setup_state & 0x02)){             	/** check for Upper Calibration Limits **/			/** check for Lower Calibration Limits **/
-			transaction.result = NOP;
-			break;
-		}
-		/** instruct the SPI to be sending back CALIBRATION_REQUIRED state **/
-		/** do nothing**/
-		transaction.result = E_CALIBRATION_REQUIRED;
 	}
 	
 	calculate_signal_params();	
@@ -380,6 +302,7 @@ int main(void){
 	TIMSK |= (1<<OCIE1A);
 			/** start the adc **/
 	ADCSRA |= (1<<ADSC);
+
 	while(1){
 		/** read analog inputs **/
 		read_ad_channel_value(INP1);
@@ -404,7 +327,7 @@ int main(void){
 		/** apply the mixes **/
 		uint8_t idx_mixes = -1;
 		while(++idx_mixes < MAX_MIXES){
-				mix_apply_transform(&model.mixes[idx_mixes]);
+				mix_apply_transform(&runtime.model.mixes[idx_mixes]);
 		};
 	}
 };
@@ -429,10 +352,10 @@ uint8_t get_key_pressed(uint8_t port, uint8_t key){
 **/
 void calibrate_channel(uint8_t ch){
 	uint16_t calibration = read_analog(ch);		
-	if(g_settings.upper_calibration[ch] < calibration)
-		g_settings.upper_calibration[ch] = calibration;
-	if(g_settings.lower_calibration[ch] > calibration)
-		g_settings.lower_calibration[ch] = calibration;
+	if(runtime.settings.upper_calibration[ch] < calibration)
+		runtime.settings.upper_calibration[ch] = calibration;
+	if(runtime.settings.lower_calibration[ch] > calibration)
+		runtime.settings.lower_calibration[ch] = calibration;
 }
 
 /**************************************** increment_trim *****************************
@@ -440,8 +363,8 @@ void calibrate_channel(uint8_t ch){
 ** trim values
 **/
 void increment_trim(uint8_t ch){
-	if(++(model.trims[ch]) > TRIM_UPPER_END){
-		(model.trims[ch]) = TRIM_UPPER_END;
+	if(++(runtime.model.trims[ch]) > TRIM_UPPER_END){
+		(runtime.model.trims[ch]) = TRIM_UPPER_END;
 	}
 	model_save_trim(ch);
 }
@@ -451,12 +374,16 @@ void increment_trim(uint8_t ch){
 ** trim values
 **/
 void decrement_trim(uint8_t ch){
-	if(model.trims[ch] > 0 && --model.trims[ch]<= TRIM_LOWER_END){
-		model.trims[ch] = TRIM_LOWER_END;
+	if(runtime.model.trims[ch] > 0 && --runtime.model.trims[ch]<= TRIM_LOWER_END){
+		runtime.model.trims[ch] = TRIM_LOWER_END;
 	}
-	model_save_trim( ch);
+	model_save_trim(ch);
 }
 
+
+void model_save_trim(ch) {
+
+}
 
 
 /**************************************** read_ad_channel_value *****************************
@@ -468,10 +395,10 @@ void decrement_trim(uint8_t ch){
 void read_ad_channel_value(uint8_t ch){
 	uint16_t value = read_analog(ch);
 	
-	float calibratedChannelRange = g_settings.upper_calibration[ch] - g_settings.lower_calibration[ch];
-	float stickMoveRatio = (value - g_settings.lower_calibration[ch])/calibratedChannelRange;
+	float calibratedChannelRange = runtime.settings.upper_calibration[ch] - runtime.settings.lower_calibration[ch];
+	float stickMoveRatio = (value - runtime.settings.lower_calibration[ch])/calibratedChannelRange;
 
-	input_hw_controls[ch] = g_settings.min_signal_width_us + ((stickMoveRatio * (float)signal_traversal_us));
+	runtime.input.hw_controls[ch] = runtime.settings.min_signal_width_us + ((stickMoveRatio * (float)runtime.signal_traversal_us));
 }
 
 /**************************************** read_switch *****************************
@@ -483,7 +410,7 @@ void read_switch(uint8_t ch, uint8_t port, uint8_t pin){
 	volatile uint8_t value = get_key_pressed(port, pin);
 	//volatile uint8_t value = (get_key_pressed(port, pin) ^ ((reverse & mask) == mask)) ? 1 : 0;
 
-	output_ppm[ch] = g_settings.min_signal_width_us + (value * (float)signal_traversal_us) + model.trims[ch];
+	runtime.output.ppm[ch] = runtime.settings.min_signal_width_us + (value * (float)runtime.signal_traversal_us) + runtime.model.trims[ch];
 }
 
 /**************************************** micros_to_ticks *****************************
@@ -497,9 +424,9 @@ uint16_t micros_to_ticks(uint16_t value){
 ** Calculates the signal limits and other values used in deciding the final ppm signal
 **/
 void calculate_signal_params(){
-	mid_signal_width_us = ((g_settings.max_signal_width_us + g_settings.max_signal_width_us)/2) + TRIM_CENTER;
-	sync_signal_width_us = (g_settings.frame_width_us - (NUM_OUTPUTS * (mid_signal_width_us + g_settings.inter_channel_width_us))); /**whatever is left **/
-	signal_traversal_us = g_settings.max_signal_width_us - g_settings.min_signal_width_us;
+	runtime.mid_signal_width_us = ((runtime.settings.max_signal_width_us + runtime.settings.max_signal_width_us)/2) + TRIM_CENTER;
+	runtime.sync_signal_width_us = (runtime.settings.frame_width_us - (NUM_OUTPUTS * (runtime.mid_signal_width_us + runtime.settings.inter_channel_width_us))); /**whatever is left **/
+	runtime.signal_traversal_us = runtime.settings.max_signal_width_us - runtime.settings.min_signal_width_us;
 };
 
 
@@ -511,7 +438,7 @@ void setup_hardware(){
 
 	/** setup the SPI Slave **/
 	/** Port B has the MISO/MOSI pins. Setup MOSI as input **/
-	transaction.state = WAIT_OPCODE;
+	runtime.transaction.state = WAIT_OPCODE;
 	DDRB = (1<<PB6);	/**Setup MISO as output */
 	SPCR = (1<<SPE) | (1<<SPIE) | (1<<SPR0) | (1<<SPR1)| (1<<CPOL);	/** enable SPI **/
 	SPDR = 0xFF;
@@ -580,14 +507,14 @@ void reset(){
 	idx = -1;
 
 	/** see how many outputs **/
-	output_ppm = malloc(NUM_OUTPUTS_INCLUDING_SYNC * sizeof(uint16_t));
+	runtime.output.ppm = malloc(NUM_OUTPUTS_INCLUDING_SYNC * sizeof(uint16_t));
 	/** set values to match servo spec **/
-	memset16(output_ppm, mid_signal_width_us, NUM_OUTPUTS_INCLUDING_SYNC);
+	memset16(runtime.output.ppm, runtime.mid_signal_width_us, NUM_OUTPUTS_INCLUDING_SYNC);
 	/**reset the servo signals **/
-	output_ppm[SYNC] = sync_signal_width_us;
+	runtime.output.ppm[SYNC] = runtime.sync_signal_width_us;
 	/** reset to the first channel **/
-	channel = CH1;
-	OCR1A = micros_to_ticks(output_ppm[SYNC]);
+	runtime.channel = CH1;
+	OCR1A = micros_to_ticks(runtime.output.ppm[SYNC]);
 };
 
 /*****************************************  process_key_inputs ****************************************
@@ -607,42 +534,55 @@ void process_key_inputs(void){
 	if(get_key_pressed(PIN_TRIM, SIG_TRIM_CH4_MINUS)) decrement_trim(CH4);
 };
 
+
+/*********************************************** memset16 ***************************************
+** used to set values in a 16 bit contigous location
+**/
+void memset16(uint16_t* a, uint16_t value, uint8_t size){
+	volatile uint8_t index = -1;
+	while(++index < size){
+		a[index] = value;
+	};
+};
+
+
+
 /*****************************************  spi_process_get_message ****************************************
 	* processess an SPI message that is required to read something. A byte is called a message
 	* this will be executed when the HIBYTE (data0) is received
 	* since we need atleast two more bytes to return the result
 **/
 void spi_process_get_message(void){
- 	switch (transaction.opcode)
+ 	switch (runtime.transaction.opcode)
 	{
 		case NOP:
 			break;
       case GCV:
-        	transaction.result = (output_ppm[(transaction.data0 >> 4)]);
+        	runtime.transaction.result = (runtime.output.ppm[(runtime.transaction.data0 >> 4)]);
         	break;
    	case GETT:
-   		transaction.result = (model.trims[(transaction.data0 >> 4)]);
-   		break;
+   			runtime.transaction.result = (runtime.model.trims[(runtime.transaction.data0 >> 4)]);
+   			break;
 	   case GETREV:
-			//transaction.result = reverse >> (transaction.data0 >> 4);
-	   	break;
+			//runtime.transaction.result = reverse >> (runtime.transaction.data0 >> 4);
+	   		break;
 		case GCUP:
-			transaction.result = (g_settings.lower_calibration[(transaction.data0 >> 4) - 1]);
+			runtime.transaction.result = (runtime.settings.lower_calibration[(runtime.transaction.data0 >> 4) - 1]);
 			break;
 		case GCDN:
-			transaction.result = (g_settings.lower_calibration[(transaction.data0 >> 4) - 1]);
+			runtime.transaction.result = (runtime.settings.lower_calibration[(runtime.transaction.data0 >> 4) - 1]);
 			break;
 		case GPPMLEN:
-			transaction.result = g_settings.frame_width_us;
+			runtime.transaction.result = runtime.settings.frame_width_us;
 			break;
 		case GPPMICL:
-			transaction.result = g_settings.inter_channel_width_us;
+			runtime.transaction.result = runtime.settings.inter_channel_width_us;
 			break;
 		case GSTIM:
-			transaction.result = g_settings.max_signal_width_us;
+			runtime.transaction.result = runtime.settings.max_signal_width_us;
 			break;
 	  	case RESET:
-  	     	transaction.state = WAIT_OPCODE;
+  	     	runtime.transaction.state = WAIT_OPCODE;
   	     	SPDR = 0x00;		
      	   break;
    }
@@ -653,7 +593,7 @@ void spi_process_get_message(void){
 	* this will be executed when the RESULT (result) is received on SPI
 **/
 void spi_process_set_message(void){
- 	switch (transaction.opcode)
+ 	switch (runtime.transaction.opcode)
 	{
 		case NOP:
 			break;
@@ -668,33 +608,46 @@ void spi_process_set_message(void){
 		case SCDN:
 			break;
 		case SPPMLEN:
-			g_settings.frame_width_us = (transaction.data0 << 8) | transaction.data1;
-			settings_write_to_eeprom();
+			runtime.settings.frame_width_us = (runtime.transaction.data0 << 8) | runtime.transaction.data1;
 			calculate_signal_params();
-			reset();
 			break;
 		case SPPMICL:
 			break;
 		case SSTIM:
 			break;
      	case RESET:
-  	     	transaction.state = WAIT_OPCODE;
+  	     	runtime.transaction.state = WAIT_OPCODE;
   	     	SPDR = 0x00;		
      	   break;
    }
 };
 
+void runtime_new(PRUNTIME* rt) {
+	/** any error in this function would mean reporting back to client and shutting down the micro
+	**/
+
+	memcpy(rt, 0, sizeof(RUNTIME));
+}
+
+
+
+void mix_apply_transform(struct mix_t* mix)
+{
+	/** This is the meat of all mixes, every mix when applied will execute this function **/
+};
+
+
 /***************************************** PPM Interrupt ********************************1*********/
 ISR(TIMER1_COMPA_vect){
 	TIMSK &= ~(1 << OCIE1A);
 	if((PIN_PPM & (1 << SIG_PPM)) == (1 << SIG_PPM)){		//If the actual pin is high, we need to set OCR1A to the complementary delay
-		OCR1A = micros_to_ticks(output_ppm[channel++]);
-		if(channel > SYNC){
-			channel = CH1;
+		OCR1A = micros_to_ticks(runtime.output.ppm[runtime.channel++]);
+		if(runtime.channel > SYNC){
+			runtime.channel = CH1;
 		}
 	}		
 	else{
-		OCR1A = micros_to_ticks(g_settings.inter_channel_width_us);
+		OCR1A = micros_to_ticks(runtime.settings.inter_channel_width_us);
    }
 	TIMSK |= (1<<OCIE1A);
 };
@@ -705,43 +658,34 @@ ISR(SPI_STC_vect){
 	uint8_t data = SPDR;
 	if(RESET == data){
 	 	SPDR = 0x00;
-    	transaction.state = WAIT_OPCODE;
+    	runtime.transaction.state = WAIT_OPCODE;
    	return;
 	}
 	else{
-		switch (transaction.state){
+		switch (runtime.transaction.state){
    		case WAIT_OPCODE:
-				transaction.opcode = data;
-				transaction.state = WAIT_HIBYTE;
+				runtime.transaction.opcode = data;
+				runtime.transaction.state = WAIT_HIBYTE;
 	         SPDR = data;     				/**return the opcode as next byte return so master knows what data is being returned**/
 	         return ;
 	      case WAIT_HIBYTE:
-	      	transaction.data0 = data;	/** data0 MUST have the identifying fields for the opcode **/
-	      	transaction.state = WAIT_LOBYTE;
+	      	runtime.transaction.data0 = data;	/** data0 MUST have the identifying fields for the opcode **/
+	      	runtime.transaction.state = WAIT_LOBYTE;
 	      	spi_process_get_message();
-				SPDR = HIBYTE(transaction.result);
+				SPDR = HIBYTE(runtime.transaction.result);
 				return;
    	  	case WAIT_LOBYTE:
-	      	transaction.data1 = data;
-	      	transaction.state = WAIT_RESET;
-      	   SPDR = LOBYTE(transaction.result);
+	      	runtime.transaction.data1 = data;
+	      	runtime.transaction.state = WAIT_RESET;
+      	   SPDR = LOBYTE(runtime.transaction.result);
 				return;
    	   case WAIT_RESET:
       	  	SPDR = 0x00;
       	  	spi_process_set_message();
-      		transaction.state = WAIT_OPCODE;
+      		runtime.transaction.state = WAIT_OPCODE;
 	      	return;
 		}
 	}
 };
 
-/*********************************************** memset16 ***************************************
-** used to set values in a 16 bit contigous location
-**/
-void memset16(uint16_t* a, uint16_t value, uint8_t size){
-	volatile uint8_t index = -1;
-	while(++index < size){
-		a[index] = value;
-	};
-};
 
