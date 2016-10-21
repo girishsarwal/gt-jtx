@@ -212,11 +212,11 @@ enum STATE {
 };
 
 typedef struct {
-	uint16_t hw_controls[NUM_INPUTS]; /** stores the sensor values, pots or switches **/
+	uint16_t hw_controls[NUM_PHYSICAL_INPUTS]; /** stores the sensor values, pots or switches **/
 } INPUT, *PINPUT;
 
 typedef struct {
-	uint16_t 	*ppm;		/** stores the final output ppm sent to the rf module **/
+	uint16_t ppm[NUM_OUTPUTS_INCLUDING_SYNC];		/** stores the final output ppm sent to the rf module **/
 
 } OUTPUT, *POUTPUT;
 
@@ -230,7 +230,7 @@ typedef struct {
 	uint8_t 	error;			/** startup errors **/
 	uint8_t 	channel;
 	uint8_t 	idx;
-
+   uint16_t test;
 
 	SPITRANSACTION transaction;
 
@@ -240,7 +240,7 @@ typedef struct {
 } RUNTIME, *PRUNTIME;
 
 
-volatile RUNTIME runtime = {0};
+volatile RUNTIME runtime;
 
 
 /***************************************** Function Declarations *****************************************/
@@ -261,8 +261,7 @@ void decrement_trim(uint8_t channel);
 void calibrate_channel(uint8_t channel);
 
 void memset16(uint16_t* array, uint16_t value, uint8_t size);
-
-void model_save_trim(ch);
+void model_save_trim(uint8_t channel);
 
 
 
@@ -271,7 +270,7 @@ void model_save_trim(ch);
 void runtime_new (uint8_t debug);
 
 void model_write_to_eeprom(PMODEL);
-void model_read_from_eeprom(PMODEl);
+void model_read_from_eeprom(PMODEL);
 
 void settings_write_to_eeprom(PSETTINGS);
 void settings_read_from_eeprom(PSETTINGS);
@@ -325,7 +324,7 @@ int main(void){
 		/** apply the mixes **/
 		uint8_t idx_mixes = -1;
 		while(++idx_mixes < MAX_MIXES){
-				mix_apply_transform(&runtime.model.mixes[idx_mixes]);
+				mix_apply_transform(&(runtime.model.mixes[idx_mixes]));
 		};
 	}
 };
@@ -379,7 +378,7 @@ void decrement_trim(uint8_t ch){
 }
 
 
-void model_save_trim(ch) {
+void model_save_trim(uint8_t channel) {
 
 }
 
@@ -395,8 +394,8 @@ void read_ad_channel_value(uint8_t ch){
 	
 	float calibratedChannelRange = runtime.settings.upper_calibration[ch] - runtime.settings.lower_calibration[ch];
 	float stickMoveRatio = (value - runtime.settings.lower_calibration[ch])/calibratedChannelRange;
-
-	runtime.input.hw_controls[ch] = runtime.settings.min_signal_width_us + ((stickMoveRatio * (float)runtime.signal_traversal_us));
+	
+	runtime.input.hw_controls[ch] = runtime.settings.min_signal_width_us + ((stickMoveRatio * (float)runtime.signal_traversal_us)) + runtime.model.trims[ch];
 }
 
 /**************************************** read_switch *****************************
@@ -406,9 +405,9 @@ void read_ad_channel_value(uint8_t ch){
 void read_switch(uint8_t ch, uint8_t port, uint8_t pin){
 	
 	volatile uint8_t value = get_key_pressed(port, pin);
-	//volatile uint8_t value = (get_key_pressed(port, pin) ^ ((reverse & mask) == mask)) ? 1 : 0;
+	//volatile uint8_t value = (get_key_pressed(port, pin) ^ ((reverse & mask) == mask));  /** reverse is not a mixes feature. program it there **/
 
-	runtime.output.ppm[ch] = runtime.settings.min_signal_width_us + (value * (float)runtime.signal_traversal_us) + runtime.model.trims[ch];
+	runtime.input.hw_controls[ch] = runtime.settings.min_signal_width_us + (value * (float)runtime.signal_traversal_us);
 }
 
 /**************************************** micros_to_ticks *****************************
@@ -505,15 +504,13 @@ void reset(){
 	
 	idx = -1;
 
-	/** see how many outputs **/
-	runtime.output.ppm = malloc(NUM_OUTPUTS_INCLUDING_SYNC * sizeof(uint16_t));
 	/** set values to match servo spec **/
 	memset16(runtime.output.ppm, runtime.mid_signal_width_us, NUM_OUTPUTS_INCLUDING_SYNC);
 	/**reset the servo signals **/
 	runtime.output.ppm[SYNC] = runtime.sync_signal_width_us;
 	/** reset to the first channel **/
 	runtime.channel = CH1;
-	OCR1A = micros_to_ticks(runtime.output.ppm[SYNC]);
+	//OCR1A = micros_to_ticks(runtime.output.ppm[SYNC]);
 };
 
 /*****************************************  process_key_inputs ****************************************
@@ -624,7 +621,7 @@ void spi_process_set_message(void){
 void runtime_new (uint8_t debug) {
 	/** any error in this function would mean reporting back to client and shutting down the micro
 	**/
-	memcpy(&runtime, 0, sizeof(RUNTIME));
+	memset(&runtime, 0, sizeof(RUNTIME));
 	if(debug) {
 		/** load debug values for testing **/
 		runtime.settings.setup_state = 252;
@@ -640,12 +637,12 @@ void runtime_new (uint8_t debug) {
 
 	}
 	/** load data from eeprom **/
-	eeprom_write_block((uint8_t*)0, &runtime.settings, sizeof(SETTINGS));
+//	eeprom_read_block((uint8_t*)0, &runtime.settings, sizeof(SETTINGS));
 }
 
 
 
-void mix_apply_transform(struct mix_t* mix)
+void mix_apply_transform(PMIX mix)
 {
 	/** This is the meat of all mixes, every mix when applied will execute this function **/
 };
@@ -662,6 +659,7 @@ ISR(TIMER1_COMPA_vect){
 	}		
 	else{
 		OCR1A = micros_to_ticks(runtime.settings.inter_channel_width_us);
+		//OCR1A = micros_to_ticks(runtime.output.ppm[SYNC]);
    }
 	TIMSK |= (1<<OCIE1A);
 };
@@ -701,6 +699,8 @@ ISR(SPI_STC_vect){
 		}
 	}
 };
+
+
 
 
 
