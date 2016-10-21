@@ -132,20 +132,20 @@ volatile uint8_t idx = 0;
 uint8_t 	eeprom_okay;
 uint8_t 	EEMEM _eeprom_eeprom_okay = 0xA0; //must bear A0 (10100000) for valid eeprom
 
-void eeprom_mark_clean();
-uint8_t eeprom_check_sanity();
+void eeprom_mark_clean(void);
+uint8_t eeprom_check_sanity(void);
 
 
-void settings_new_default();
-void settings_write_to_eeprom();
-void settings_read_from_eeprom();
-void calibration_write_to_eeprom();
-void calibration_read_to_eeprom();
+void settings_new_default(void);
+void settings_write_to_eeprom(void);
+void settings_read_from_eeprom(void);
+void calibration_write_to_eeprom(void);
+void calibration_read_to_eeprom(void);
 
 /*****************************************************save_eeprom_ok_status *****************************
 ** marks eeprom as OK
 **/
-void eeprom_mark_clean()
+void eeprom_mark_clean(void)
 {
 	eeprom_write_byte(&_eeprom_eeprom_okay, eeprom_okay);
 };
@@ -154,7 +154,7 @@ void eeprom_mark_clean()
 ** return false if there is a problem and eeprom needs formatting
 **
 **/
-uint8_t eeprom_check_sanity(){
+uint8_t eeprom_check_sanity(void){
 	eeprom_okay = eeprom_read_word(&_eeprom_eeprom_okay);								/** read eeprom status **/
 	return (eeprom_okay == MAGIC_NUMBER);
 }
@@ -178,7 +178,7 @@ struct settings_t EEMEM _eeprom_g_settings = {252, 700, 1700, 300, 22500, 16,
 											  {0, 0, 0, 0, 0, 0, 0, 0},
 											  {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}};
 
-void settings_new_default()
+void settings_new_default(void)
 {
 	g_settings.setup_state = 252;
 	g_settings.min_signal_width_us = 700;
@@ -193,21 +193,21 @@ void settings_new_default()
 	settings_write_to_eeprom();
 	calibration_write_to_eeprom();
 };
-void settings_write_to_eeprom()
+void settings_write_to_eeprom(void)
 {
 	//eeprom_write_block((void*)&g_settings, (const void*) _eeprom_g_settings, sizeof(settings_t));
 };
-void settings_read_from_eeprom()
+void settings_read_from_eeprom(void)
 {
 	eeprom_read_block((void*)&g_settings , (const void*)&_eeprom_g_settings, sizeof(struct settings_t));
 };
 
-void calibration_write_to_eeprom()
+void calibration_write_to_eeprom(void)
 {
 
 };
 
-void calibration_read_to_eeprom()
+void calibration_read_to_eeprom(void)
 {
 
 };
@@ -252,11 +252,11 @@ struct model
 } model;		//This is the only representation of the model int the system. the list of models will be stored with the frontend.
 				//It is the frontend's responsibility to create a to-fro mechanism for sending model data to gt-jtx over spi
 
-void model_load_from_eeprom()
+void model_load_from_eeprom(void)
 {
 	/** this function must deserialize the current model settings from the eeprom **/
 };
-void model_save_to_eeprom()
+void model_save_to_eeprom(void)
 {
 	/** this function will serialize the current model settings to the eeprom **/
 };
@@ -323,13 +323,13 @@ volatile struct spitransaction_t transaction;
 uint16_t read_analog(uint8_t);
 uint16_t micros_to_ticks(uint16_t);
 uint8_t get_key_pressed(uint8_t port, uint8_t key);
-void process_key_inputs();
+void process_key_inputs(void);
 
-void reset();
-void setup_hardware();
+void reset(void);
+void setup_hardware(void);
 void read_ad_channel_value(uint8_t);
 void read_switch(uint8_t ch, uint8_t port, uint8_t pin);
-void calculate_signal_params();
+void calculate_signal_params(void);
 
 void increment_trim(uint8_t channel);
 void decrement_trim(uint8_t channel);
@@ -596,9 +596,11 @@ void reset(){
 
 /*****************************************  process_key_inputs ****************************************
 	* processes Key inputs on the gt-jtx. These are trim keys only for the gt-jtx-m32
+	* most of controls elsewise will be via SPI
 	* this needs to be called in a loop for continous polling. Call in the main loop
 **/
-void process_key_inputs(){
+
+void process_key_inputs(void){
 	if(get_key_pressed(PIN_TRIM, SIG_TRIM_CH1_PLUS)) increment_trim(CH1);
 	if(get_key_pressed(PIN_TRIM, SIG_TRIM_CH1_MINUS)) decrement_trim(CH1);
 	if(get_key_pressed(PIN_TRIM, SIG_TRIM_CH2_PLUS)) increment_trim(CH2);
@@ -614,7 +616,7 @@ void process_key_inputs(){
 	* this will be executed when the HIBYTE (data0) is received
 	* since we need atleast two more bytes to return the result
 **/
-void spi_process_get_message(){
+void spi_process_get_message(void){
  	switch (transaction.opcode)
 	{
 		case NOP:
@@ -746,6 +748,7 @@ void memset16(uint16_t* a, uint16_t value, uint8_t size){
 		a[index] = value;
 	};
 };
+
 
 
 
