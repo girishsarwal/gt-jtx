@@ -633,11 +633,12 @@ void runtime_new (uint8_t debug) {
 		memset16(&runtime.settings.upper_calibration, 0, MAX_ANALOG_INPUTS);
 		memset16(&runtime.settings.lower_calibration, 1024, MAX_ANALOG_INPUTS);
 		/** create a model for testing **/
-		eeprom_write_block((uint8_t*)0, &runtime.settings, sizeof(SETTINGS));
+		
+		eeprom_write_block((void*)&runtime.settings, (const void*)0x00, sizeof(SETTINGS));
 
 	}
 	/** load data from eeprom **/
-//	eeprom_read_block((uint8_t*)0, &runtime.settings, sizeof(SETTINGS));
+	eeprom_read_block((void*)&runtime.settings, (const void*)0x00, sizeof(SETTINGS));
 }
 
 
@@ -699,6 +700,7 @@ ISR(SPI_STC_vect){
 		}
 	}
 };
+
 
 
 
