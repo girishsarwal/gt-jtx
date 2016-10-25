@@ -158,7 +158,6 @@ typedef struct {
 #define MAX_MIXES 32
 
 typedef struct {
-	uint8_t uuid[4];					/** 4 bytes of uuid **/
 	MIX mixes[MAX_MIXES];				/** array of mixes **/
 	uint8_t trims[MAX_ANALOG_INPUTS];	/** array of trims **/
 	uint8_t cbSize;						/** size of this model **/
