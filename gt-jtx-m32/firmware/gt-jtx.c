@@ -10,6 +10,9 @@
 #define F_CPU 1000000UL
 #endif
 
+#define USART_BAUDRATE 9600
+#define BAUD_PRESCALE (((F_CPU / (USART_BAUDRATE * 16UL))) - 1)
+
 #define DEBUG
 
 #include <avr/io.h>
@@ -165,52 +168,55 @@ typedef struct {
 } MODEL, *PMODEL;
 				
 
-/** spi communication **/
-/** refer to gt-jtx docs for a complete spi dictionary **/
-typedef struct {
-	uint8_t opcode;
-	uint8_t state;
-	uint8_t data0;
-	uint8_t data1;
-	uint16_t result;
-} SPITRANSACTION, *PSPITRANSACTION;
-
 enum OPCODE {
-   SETTUP = 0x01,		/** set up trim **/
-   SETTDN = 0x02,     	/** set down trim **/
-   GETT = 0x03,       	/** get trim **/
-   SETREV = 0x04,     	/** set signal reverse **/
-   GETREV = 0x05,	 	/** get signal reverse **/
-   SCUP = 0x06,			/** set calibration upper **/
-   GCUP = 0x07,			/** get calibration upper **/
-   SCDN = 0x08,			/** set calibration lower **/
-   GCDN = 0x09,			/** get calibration lower **/
-   SPPMLEN = 0x0A,		/** set PPM length **/
-   GPPMLEN = 0x0B,		/** get PPM length **/
-   SPPMICL = 0x0C,		/** set PPM Inter-Channel Length, default is 300us **/
-   GPPMICL = 0x0D,		/** get PPM Inter-Channel Length **/
-   SSTIM = 0x0E,		/** set servo timing **/
-   GSTIM = 0x0F,		/** get servo timing **/
-   GCV = 0x10,
+	/** OPCODE is a mnemonic that will be processed by this SPI Slave
+	 ** A master to slave data direction OPCODE will end in 1 LSB,
+	 ** whereas a slave to master data direction OPCODE will end in 0 LSB,
+	 ** two way comm OPCODES will have two variants, a bit apart to maintain this scheme
+    **/
 
-   /** everything above 0xE0 is control state, 16 signals can be sent back **/
+	/** reserved OPCODES **/
+	
+   NOP = 0x00,        	/** a NOP request will send back the status code to master, if no error, then NOP will be sent back **/
+   RESET = 0xFF,	  		/** 0xFF is unique code. When gt-jtx gets this signal, it will cause a reset on all values akin to a boot**/
+		
+   SETTUP = 0x01,			/** set up trim **/
+   GETTUP = 0x02,       /** get up trim **/
+   SETTDN = 0x03,       /** set down trim **/
+   GETTDN = 0x04,       /** get down trim **/
+   SETREV = 0x05,     	/** set signal reverse **/
+   GETREV = 0x06,			/** get signal reverse **/
+   SCUP = 0x07,			/** set calibration upper **/
+   GCUP = 0x08,			/** get calibration upper **/
+   SCDN = 0x09,			/** set calibration lower **/
+   GCDN = 0x0A,			/** get calibration lower **/
+   SPPMLEN = 0x0B,		/** set PPM length **/
+   GPPMLEN = 0x0C,		/** get PPM length **/
+   SPPMICL = 0x0D,		/** set PPM Inter-Channel Length, default is 300us **/
+   GPPMICL = 0x0E,		/** get PPM Inter-Channel Length **/
+   SSTIM = 0x0F,			/** set servo timing **/
+   GSTIM = 0x10,			/** get servo timing **/
+
+   /** 0xE0 - 0xEF are predefined signals, 16 signals can be sent back **/
+	GCV = 0xE0,          /** get channel value **/
 
    /** everything above 0xF0 is error state, 16 signals can be sent back **/
-   E_BAD_EEPROM = 0xFE,
-   E_CALIBRATION_REQUIRED = 0xFD,
-   E_NO_MODEL_DEFINED = 0xFC,
-
-   NOP = 0x00,        /** a NOP request will send back the status code to master, if no error, then NOP will be sent back **/
-   RESET = 0xFF,	  /** 0xFF is unique code. When gt-jtx gets this signal, it will cause a reset on all values akin to a boot**/
+   E_NO_DATA = 0xFE,
+   E_COMM = 0xFD,
 };
 
-enum STATE {
-   WAIT_RESET  = 0x00,
-   WAIT_OPCODE = 0x01,
-   WAIT_HIBYTE = 0x02,
-   WAIT_LOBYTE = 0x03,
+enum FRAMESTATE {
+	SOF = 0x00,
+	IN_FRAME = 0xF0,
+	AFTER_ESC = 0x0F,
+	EOF = 0xFF,
 };
-
+enum MESSAGESTATE {
+	OPCODE,
+	LENGTH,
+	DATA,
+	CHECKSUM,
+};
 typedef struct {
 	uint16_t hw_controls[NUM_PHYSICAL_INPUTS]; /** stores the sensor values, pots or switches **/
 } INPUT, *PINPUT;
@@ -232,8 +238,12 @@ typedef struct {
 	uint8_t 	idx;
    uint16_t test;
 
-	SPITRANSACTION transaction;
-
+	uint8_t serialstate;
+	uint8_t packetstate;
+	
+	uint8_t data[255];
+	uint16_t dataptr;
+	
 	/** from here on everything will be serialized to eeprom **/
 	SETTINGS settings;			/** serialized to eeprom **/
 	MODEL model;				/** serialized to eeprom **/
@@ -264,7 +274,6 @@ void memset16(uint16_t* array, uint16_t value, uint8_t size);
 void model_save_trim(uint8_t channel);
 
 
-
 /***************************************** Business Objects *****************************************/
 
 void runtime_new (uint8_t debug);
@@ -280,8 +289,8 @@ void calibration_read_to_eeprom(void);
 
 
 /***************************************** Interrupt Declarations *****************************************/
-ISR(SPI_STC_vect);     	/**SPI byte received **/
-ISR(TIMER1_COMPA_vect); /**PPM time elapsed **/
+ISR(USART_RXC_vect);     	/**USART byte received **/
+ISR(TIMER1_COMPA_vect); 	/**PPM time elapsed **/
 
 
 /************************************MAIN Routine *****************************************
@@ -436,10 +445,17 @@ void setup_hardware(){
 
 	/** setup the SPI Slave **/
 	/** Port B has the MISO/MOSI pins. Setup MOSI as input **/
-	runtime.transaction.state = WAIT_OPCODE;
 	DDRB = (1<<PB6);	/**Setup MISO as output */
-	SPCR = (1<<SPE) | (1<<SPIE) | (1<<SPR0) | (1<<SPR1)| (1<<CPOL);	/** enable SPI **/
-	SPDR = 0xFF;
+	
+	/** setup usart for bluetooth connection **/
+   UCSRB = (1 << RXEN) | (1 << TXEN);   // Turn on the transmission and reception circuitry
+   UCSRC = (1 << URSEL) | (1 << UCSZ0) | (1 << UCSZ1); // Use 8-bit character sizes
+
+   UBRRH = (BAUD_PRESCALE >> 8); // Load upper 8-bits of the baud rate value into the high byte of the UBRR register
+   UBRRL = BAUD_PRESCALE; // Load lower 8-bits of the baud rate value into the low byte of the UBRR register
+	
+	UCSRB |= (1 << RXCIE);
+	
 	sei();
 
 	/** Analog Inputs**/
@@ -543,80 +559,65 @@ void memset16(uint16_t* a, uint16_t value, uint8_t size){
 
 
 
-/*****************************************  spi_process_get_message ****************************************
-	* processess an SPI message that is required to read something. A byte is called a message
-	* this will be executed when the HIBYTE (data0) is received
-	* since we need atleast two more bytes to return the result
+/*****************************************  spi_process_message ****************************************
+	* processess a SPI message recieved
 **/
-void spi_process_get_message(void){
- 	switch (runtime.transaction.opcode)
-	{
-		case NOP:
-			break;
-      case GCV:
-        	runtime.transaction.result = (runtime.output.ppm[(runtime.transaction.data0 >> 4)]);
-        	break;
-   	case GETT:
-   			runtime.transaction.result = (runtime.model.trims[(runtime.transaction.data0 >> 4)]);
-   			break;
-	   case GETREV:
-			//runtime.transaction.result = reverse >> (runtime.transaction.data0 >> 4);
-	   		break;
-		case GCUP:
-			runtime.transaction.result = (runtime.settings.lower_calibration[(runtime.transaction.data0 >> 4) - 1]);
-			break;
-		case GCDN:
-			runtime.transaction.result = (runtime.settings.lower_calibration[(runtime.transaction.data0 >> 4) - 1]);
-			break;
-		case GPPMLEN:
-			runtime.transaction.result = runtime.settings.frame_width_us;
-			break;
-		case GPPMICL:
-			runtime.transaction.result = runtime.settings.inter_channel_width_us;
-			break;
-		case GSTIM:
-			runtime.transaction.result = runtime.settings.max_signal_width_us;
-			break;
-	  	case RESET:
-  	     	runtime.transaction.state = WAIT_OPCODE;
-  	     	SPDR = 0x00;		
-     	   break;
-   }
-};
+void spi_process_message(void){
 
-/*****************************************  spi_process_set_message ****************************************
-	* processess an SPI message that is required to write something. A byte is called a message
-	* this will be executed when the RESULT (result) is received on SPI
-**/
-void spi_process_set_message(void){
- 	switch (runtime.transaction.opcode)
+/** chop the message **/
+	
+/* 	switch (runtime.opcode)
 	{
 		case NOP:
 			break;
 		case SETTUP:
    		break;
+   	case GETTUP:
+  			break;
+
    	case SETTDN:
    		break;
+   	case GETTDN:
+	   	break;
+
 	   case SETREV:
 	   	break;
+	   case GETREV:
+   		break;
+
 		case SCUP:
 			break;
+		case GCUP:
+			break;
+
 		case SCDN:
 			break;
-		case SPPMLEN:
-			runtime.settings.frame_width_us = (runtime.transaction.data0 << 8) | runtime.transaction.data1;
-			calculate_signal_params();
+		case GCDN:
 			break;
+
+		case SPPMLEN:
+			break;
+		case GPPMLEN:
+			break;
+
 		case SPPMICL:
 			break;
+		case GPPMICL:
+			break;
+
 		case SSTIM:
 			break;
-     	case RESET:
-  	     	runtime.transaction.state = WAIT_OPCODE;
-  	     	SPDR = 0x00;		
+		case GSTIM:
+			break;
+
+      case GCV:
+        	break;
+
+	  	case RESET:
      	   break;
-   }
+   }*/
 };
+
 
 void runtime_new (uint8_t debug) {
 	/** any error in this function would mean reporting back to client and shutting down the micro
@@ -665,40 +666,12 @@ ISR(TIMER1_COMPA_vect){
 };
 
 
-/***************************************** SPI Interrupt *****************************************/
-ISR(SPI_STC_vect){
-	uint8_t data = SPDR;
-	if(RESET == data){
-	 	SPDR = 0x00;
-    	runtime.transaction.state = WAIT_OPCODE;
-   	return;
-	}
-	else{
-		switch (runtime.transaction.state){
-   		case WAIT_OPCODE:
-				runtime.transaction.opcode = data;
-				runtime.transaction.state = WAIT_HIBYTE;
-	         SPDR = data;     				/**return the opcode as next byte return so master knows what data is being returned**/
-	         return ;
-	      case WAIT_HIBYTE:
-	      	runtime.transaction.data0 = data;	/** data0 MUST have the identifying fields for the opcode **/
-	      	runtime.transaction.state = WAIT_LOBYTE;
-	      	spi_process_get_message();
-				SPDR = HIBYTE(runtime.transaction.result);
-				return;
-   	  	case WAIT_LOBYTE:
-	      	runtime.transaction.data1 = data;
-	      	runtime.transaction.state = WAIT_RESET;
-      	   SPDR = LOBYTE(runtime.transaction.result);
-				return;
-   	   case WAIT_RESET:
-      	  	SPDR = 0x00;
-      	  	spi_process_set_message();
-      		runtime.transaction.state = WAIT_OPCODE;
-	      	return;
-		}
-	}
-};
+/***************************************** USART Interrupt *****************************************/
+ISR(USART_RXC_vect) {
+	uint8_t data = 0;
+	data = UDR;
+}
+
 
 
 
