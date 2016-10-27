@@ -167,11 +167,15 @@ typedef struct {
 /** spi communication **/
 /** refer to gt-jtx docs for a complete spi dictionary **/
 typedef struct {
-	uint8_t opcode;
+	/** control **/
 	uint8_t state;
-	uint8_t data0;
-	uint8_t data1;
-	uint16_t result;
+	uint16_t dataptr;
+	/** request **/
+	uint8_t opcode;
+	
+	/** response **/	
+	uint8_t* data;
+	uint16_t cbSize;
 } SPITRANSACTION, *PSPITRANSACTION;
 
 enum OPCODE {
@@ -204,10 +208,10 @@ enum OPCODE {
 };
 
 enum STATE {
-   WAIT_RESET  = 0x00,
-   WAIT_OPCODE = 0x01,
-   WAIT_HIBYTE = 0x02,
-   WAIT_LOBYTE = 0x03,
+   PACKET_START  = 0xFF,        	/** signifies reset state **/
+	OPCODE_RECEIVED = 0xF0,
+   MORE_DATA = 0x0F,
+   PACKET_STOP = 0x00,
 };
 
 typedef struct {
@@ -229,7 +233,11 @@ typedef struct {
 	uint8_t 	error;			/** startup errors **/
 	uint8_t 	channel;
 	uint8_t 	idx;
-   uint16_t test;
+
+	uint16_t dataptr;
+   uint8_t size;
+
+
 
 	SPITRANSACTION transaction;
 
@@ -435,7 +443,7 @@ void setup_hardware(){
 
 	/** setup the SPI Slave **/
 	/** Port B has the MISO/MOSI pins. Setup MOSI as input **/
-	runtime.transaction.state = WAIT_OPCODE;
+	runtime.transaction.state = PACKET_START;
 	DDRB = (1<<PB6);	/**Setup MISO as output */
 	SPCR = (1<<SPE) | (1<<SPIE) | (1<<SPR0) | (1<<SPR1)| (1<<CPOL);	/** enable SPI **/
 	SPDR = 0xFF;
@@ -540,58 +548,32 @@ void memset16(uint16_t* a, uint16_t value, uint8_t size){
 	};
 };
 
-
-
-/*****************************************  spi_process_get_message ****************************************
-	* processess an SPI message that is required to read something. A byte is called a message
-	* this will be executed when the HIBYTE (data0) is received
-	* since we need atleast two more bytes to return the result
+/*****************************************  spi_process_command ****************************************
+	* processess the SPI command that was sent from master
 **/
-void spi_process_get_message(void){
+void spi_process_command(void){
  	switch (runtime.transaction.opcode)
 	{
 		case NOP:
 			break;
       case GCV:
-        	runtime.transaction.result = (runtime.output.ppm[(runtime.transaction.data0 >> 4)]);
         	break;
    	case GETT:
-   			runtime.transaction.result = (runtime.model.trims[(runtime.transaction.data0 >> 4)]);
-   			break;
+   		break;
 	   case GETREV:
-			//runtime.transaction.result = reverse >> (runtime.transaction.data0 >> 4);
-	   		break;
+			break;
 		case GCUP:
-			runtime.transaction.result = (runtime.settings.lower_calibration[(runtime.transaction.data0 >> 4) - 1]);
 			break;
 		case GCDN:
-			runtime.transaction.result = (runtime.settings.lower_calibration[(runtime.transaction.data0 >> 4) - 1]);
 			break;
 		case GPPMLEN:
-			runtime.transaction.result = runtime.settings.frame_width_us;
 			break;
 		case GPPMICL:
-			runtime.transaction.result = runtime.settings.inter_channel_width_us;
 			break;
 		case GSTIM:
-			runtime.transaction.result = runtime.settings.max_signal_width_us;
 			break;
 	  	case RESET:
-  	     	runtime.transaction.state = WAIT_OPCODE;
-  	     	SPDR = 0x00;		
-     	   break;
-   }
-};
-
-/*****************************************  spi_process_set_message ****************************************
-	* processess an SPI message that is required to write something. A byte is called a message
-	* this will be executed when the RESULT (result) is received on SPI
-**/
-void spi_process_set_message(void){
- 	switch (runtime.transaction.opcode)
-	{
-		case NOP:
-			break;
+  	      break;
 		case SETTUP:
    		break;
    	case SETTDN:
@@ -603,19 +585,39 @@ void spi_process_set_message(void){
 		case SCDN:
 			break;
 		case SPPMLEN:
-			runtime.settings.frame_width_us = (runtime.transaction.data0 << 8) | runtime.transaction.data1;
-			calculate_signal_params();
 			break;
 		case SPPMICL:
 			break;
 		case SSTIM:
 			break;
      	case RESET:
-  	     	runtime.transaction.state = WAIT_OPCODE;
-  	     	SPDR = 0x00;		
-     	   break;
+  	     	break;
    }
 };
+
+/*****************************************  spi_set packet length ****************************************
+	* sets the length of the return packet to the master, so we know what data to be pushed
+**/
+
+uint8_t spi_set_packet_length(){
+ 	switch (runtime.transaction.opcode)
+	{
+		case NOP:
+		case RESET:
+			return 0;
+		case SETTUP:
+		case SETTDN:
+	   case SETREV:
+	   case SCUP:
+		case SCDN:
+		case SPPMLEN:
+		case SPPMICL:
+		case SSTIM:
+			return 4;
+     	default:
+     		return 0;
+   }
+}
 
 void runtime_new (uint8_t debug) {
 	/** any error in this function would mean reporting back to client and shutting down the micro
@@ -664,41 +666,51 @@ ISR(TIMER1_COMPA_vect){
 	TIMSK |= (1<<OCIE1A);
 };
 
-
-/***************************************** SPI Interrupt *****************************************/
+/**************************************** SPI Interrupt *****************************************/
 ISR(SPI_STC_vect){
 	uint8_t data = SPDR;
-	if(RESET == data){
+	if(PACKET_START == data){	/** data sent is 0x00 **/
 	 	SPDR = 0x00;
-    	runtime.transaction.state = WAIT_OPCODE;
+    	runtime.transaction.state = PACKET_START;
    	return;
 	}
 	else{
 		switch (runtime.transaction.state){
-   		case WAIT_OPCODE:
+			case PACKET_START:
 				runtime.transaction.opcode = data;
-				runtime.transaction.state = WAIT_HIBYTE;
-	         SPDR = data;     				/**return the opcode as next byte return so master knows what data is being returned**/
-	         return ;
-	      case WAIT_HIBYTE:
-	      	runtime.transaction.data0 = data;	/** data0 MUST have the identifying fields for the opcode **/
-	      	runtime.transaction.state = WAIT_LOBYTE;
-	      	spi_process_get_message();
-				SPDR = HIBYTE(runtime.transaction.result);
+				runtime.transaction.state = OPCODE_RECEIVED;
+				runtime.transaction.cbSize = spi_set_packet_length();
+				runtime.size = runtime.transaction.cbSize;
+	         /** allocate an adequate buffer **/
+	         SPDR = runtime.transaction.cbSize;     				/**return the length of the result buffer so master can allocate necessary buffers **/				
+				runtime.transaction.data = (uint8_t*)malloc(runtime.transaction.cbSize * sizeof(uint8_t));
+				runtime.transaction.dataptr = 0;
+				break;
+   		case OPCODE_RECEIVED:
+   			if(runtime.transaction.cbSize == 0){
+   				runtime.transaction.state = PACKET_STOP;
+   				return;
+   			}
+   			runtime.transaction.state = MORE_DATA;
 				return;
-   	  	case WAIT_LOBYTE:
-	      	runtime.transaction.data1 = data;
-	      	runtime.transaction.state = WAIT_RESET;
-      	   SPDR = LOBYTE(runtime.transaction.result);
-				return;
-   	   case WAIT_RESET:
-      	  	SPDR = 0x00;
-      	  	spi_process_set_message();
-      		runtime.transaction.state = WAIT_OPCODE;
-	      	return;
+	      case MORE_DATA:
+	         runtime.transaction.data[runtime.transaction.dataptr++] = data;
+	         runtime.dataptr = runtime.transaction.dataptr;
+	         if(runtime.transaction.dataptr == runtime.transaction.cbSize - 2) {
+	         	runtime.transaction.state = PACKET_STOP;
+				}
+				break;
+			case PACKET_STOP:
+				runtime.transaction.data[runtime.transaction.cbSize - 1] = data;
+				runtime.transaction.state = PACKET_START;
+				process_spi_instruction();
+				free(runtime.transaction.data);
+				break;
+				
 		}
 	}
 };
+
 
 
 
