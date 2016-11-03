@@ -178,35 +178,56 @@ typedef struct {
 	uint16_t cbSize;
 } SPITRANSACTION, *PSPITRANSACTION;
 
-enum OPCODE {
-   SETTUP = 0x01,		/** set up trim **/
-   SETTDN = 0x02,     	/** set down trim **/
-   GETT = 0x03,       	/** get trim **/
-   SETREV = 0x04,     	/** set signal reverse **/
-   GETREV = 0x05,	 	/** get signal reverse **/
-   SCUP = 0x06,			/** set calibration upper **/
-   GCUP = 0x07,			/** get calibration upper **/
-   SCDN = 0x08,			/** set calibration lower **/
-   GCDN = 0x09,			/** get calibration lower **/
-   SPPMLEN = 0x0A,		/** set PPM length **/
-   GPPMLEN = 0x0B,		/** get PPM length **/
-   SPPMICL = 0x0C,		/** set PPM Inter-Channel Length, default is 300us **/
-   GPPMICL = 0x0D,		/** get PPM Inter-Channel Length **/
-   SSTIM = 0x0E,		/** set servo timing **/
-   GSTIM = 0x0F,		/** get servo timing **/
-   GCV = 0x10,
 
-   /** everything above 0xE0 is control state, 16 signals can be sent back **/
+enum OPCODE {
+	/** OPCODE is a mnemonic that will be processed by this SPI Slave
+	 ** A master to slave data direction OPCODE will end in 1 LSB,
+	 ** whereas a slave to master data direction OPCODE will end in 0 LSB,
+	 ** two way comm OPCODES will have two variants, a bit apart to maintain this scheme
+    **/
+
+	/** reserved OPCODES **/
+	
+   NOP = 0x00,        	/** a NOP request will send back the status code to master, if no error, then NOP will be sent back **/
+   RESET = 0xFF,	  		/** 0xFF is unique code. When gt-jtx gets this signal, it will cause a reset on all values akin to a boot**/
+		
+   SETTUP = 0x01,			/** set up trim **/
+   GETTUP = 0x02,       /** get up trim **/
+   SETTDN = 0x03,       /** set down trim **/
+   GETTDN = 0x04,       /** get down trim **/
+   SETREV = 0x05,     	/** set signal reverse **/
+   GETREV = 0x06,			/** get signal reverse **/
+   SCUP = 0x07,			/** set calibration upper **/
+   GCUP = 0x08,			/** get calibration upper **/
+   SCDN = 0x09,			/** set calibration lower **/
+   GCDN = 0x0A,			/** get calibration lower **/
+   SPPMLEN = 0x0B,		/** set PPM length **/
+   GPPMLEN = 0x0C,		/** get PPM length **/
+   SPPMICL = 0x0D,		/** set PPM Inter-Channel Length, default is 300us **/
+   GPPMICL = 0x0E,		/** get PPM Inter-Channel Length **/
+   SSTIM = 0x0F,			/** set servo timing **/
+   GSTIM = 0x10,			/** get servo timing **/
+
+   /** 0xE0 - 0xEF are predefined signals, 16 signals can be sent back **/
+	GCV = 0xE0,          /** get channel value **/
 
    /** everything above 0xF0 is error state, 16 signals can be sent back **/
-   E_BAD_EEPROM = 0xFE,
-   E_CALIBRATION_REQUIRED = 0xFD,
-   E_NO_MODEL_DEFINED = 0xFC,
-
-   NOP = 0x00,        /** a NOP request will send back the status code to master, if no error, then NOP will be sent back **/
-   RESET = 0xFF,	  /** 0xFF is unique code. When gt-jtx gets this signal, it will cause a reset on all values akin to a boot**/
+   E_NO_DATA = 0xFE,
+   E_COMM = 0xFD,
 };
 
+enum FRAMESTATE {
+	SOF = 0x00,
+	IN_FRAME = 0xF0,
+	AFTER_ESC = 0x0F,
+	EOF = 0xFF,
+};
+enum MESSAGESTATE {
+	OPCODE,
+	LENGTH,
+	DATA,
+	CHECKSUM,
+};
 enum STATE {
    PACKET_START  = 0xFF,        	/** signifies reset state **/
 	OPCODE_RECEIVED = 0xF0,
@@ -270,7 +291,7 @@ void calibrate_channel(uint8_t channel);
 void memset16(uint16_t* array, uint16_t value, uint8_t size);
 void model_save_trim(uint8_t channel);
 
-
+void 	spi_process_instruction(void);
 
 /***************************************** Business Objects *****************************************/
 
@@ -551,49 +572,11 @@ void memset16(uint16_t* a, uint16_t value, uint8_t size){
 /*****************************************  spi_process_command ****************************************
 	* processess the SPI command that was sent from master
 **/
-void spi_process_command(void){
- 	switch (runtime.transaction.opcode)
-	{
-		case NOP:
-			break;
-      case GCV:
-        	break;
-   	case GETT:
-   		break;
-	   case GETREV:
-			break;
-		case GCUP:
-			break;
-		case GCDN:
-			break;
-		case GPPMLEN:
-			break;
-		case GPPMICL:
-			break;
-		case GSTIM:
-			break;
-	  	case RESET:
-  	      break;
-		case SETTUP:
-   		break;
-   	case SETTDN:
-   		break;
-	   case SETREV:
-	   	break;
-		case SCUP:
-			break;
-		case SCDN:
-			break;
-		case SPPMLEN:
-			break;
-		case SPPMICL:
-			break;
-		case SSTIM:
-			break;
-     	case RESET:
-  	     	break;
+void spi_process_instruction(void){
+ 	switch (runtime.transaction.opcode) {
    }
 };
+
 
 /*****************************************  spi_set packet length ****************************************
 	* sets the length of the return packet to the master, so we know what data to be pushed
@@ -703,13 +686,15 @@ ISR(SPI_STC_vect){
 			case PACKET_STOP:
 				runtime.transaction.data[runtime.transaction.cbSize - 1] = data;
 				runtime.transaction.state = PACKET_START;
-				process_spi_instruction();
+				spi_process_instruction();
 				free(runtime.transaction.data);
 				break;
 				
 		}
 	}
 };
+
+
 
 
 
