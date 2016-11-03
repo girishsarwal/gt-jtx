@@ -27,6 +27,8 @@
 #define INP7		6    //Mapped to PA1
 #define INP8		7    //Mapped to PA0
 
+#define NETWORK_ADDR	0x2E;
+
 #define MAX_ANALOG_INPUTS 8
 
 #define INP9		8     //Mapped to PD6
@@ -163,21 +165,66 @@ typedef struct {
 	uint8_t cbSize;						/** size of this model **/
 } MODEL, *PMODEL;
 				
+/*** USART COMM PROTOCOL **
 
-/** spi communication **/
-/** refer to gt-jtx docs for a complete spi dictionary **/
-typedef struct {
-	/** control **/
-	uint8_t state;
-	uint16_t dataptr;
-	/** request **/
-	uint8_t opcode;
+--------------------------------------------------
+								WRITE		
+      MASTER 								SLAVE							
+B0. 	FRM					->		
+								<-				ACK
+B1. 	[OPCODE]				->
+								<-				HIBYTE(N)
+B2.	[ADDRESS]			->				
+								<-				ACK
+B2.	[ARG]					->		
+								<-				LOBYTE(N)
+					
+B3.	WRITE BYTES ON TX			ACCUMULATE LEN BYTES		
+|
+|
+|
+BN.	WRITE BYTES ON TX			ACCUMULATE LEN BYTES
+
+BN+1.	CHECKSUM				->
+								<-				CHECKSUM
+
+
+								READ		
+      MASTER 								SLAVE							
+B0. 	FRM					->		
+								<-				FRM
+B1. 	[OPCODE]				->
+								<-				HIBYTE(N)
+B2.	[ARG]					->		
+								<-				LOBYTE(N)
+					
+B3.	READ BYTES ON RX			WRITE LEN BYTES
+|
+|
+|
+BN.	READ BYTES ON RX			WRITE LEN BYTES
+
+BN+1.	CHECKSUM				->
+								<-				CHECKSUM
 	
-	/** response **/	
-	uint8_t* data;
-	uint16_t cbSize;
-} SPITRANSACTION, *PSPITRANSACTION;
 
+**/
+
+
+enum USART_COMM_STATE {
+	SOF,
+	IN_MSG,
+	AFTER_MSG,
+	AFTER_ESC,
+};
+
+enum USART_FRAME_STATE {
+	FRAME,
+	OPCODE,
+	ARG,
+	DATA,
+	CHECKSUM,
+};
 
 enum OPCODE {
 	/** OPCODE is a mnemonic that will be processed by this SPI Slave
@@ -216,24 +263,17 @@ enum OPCODE {
    E_COMM = 0xFD,
 };
 
-enum FRAMESTATE {
-	SOF = 0x00,
-	IN_FRAME = 0xF0,
-	AFTER_ESC = 0x0F,
-	EOF = 0xFF,
-};
-enum MESSAGESTATE {
-	OPCODE,
-	LENGTH,
-	DATA,
-	CHECKSUM,
-};
-enum STATE {
-   PACKET_START  = 0xFF,        	/** signifies reset state **/
-	OPCODE_RECEIVED = 0xF0,
-   MORE_DATA = 0x0F,
-   PACKET_STOP = 0x00,
-};
+
+/** usart communications **/
+/** refer to gt-jtx docs for a complete spi dictionary **/
+typedef struct {
+	uint8_t opcode;
+	uint8_t address;
+	uint8_t* data;
+	uint16_t cbSize;
+} USART_TXN, *PUSART_TXN;
+
+
 
 typedef struct {
 	uint16_t hw_controls[NUM_PHYSICAL_INPUTS]; /** stores the sensor values, pots or switches **/
@@ -260,7 +300,7 @@ typedef struct {
 
 
 
-	SPITRANSACTION transaction;
+	USART_TXN transaction;
 
 	/** from here on everything will be serialized to eeprom **/
 	SETTINGS settings;			/** serialized to eeprom **/
@@ -464,10 +504,10 @@ void setup_hardware(){
 
 	/** setup the SPI Slave **/
 	/** Port B has the MISO/MOSI pins. Setup MOSI as input **/
-	runtime.transaction.state = PACKET_START;
 	DDRB = (1<<PB6);	/**Setup MISO as output */
-	SPCR = (1<<SPE) | (1<<SPIE) | (1<<SPR0) | (1<<SPR1)| (1<<CPOL);	/** enable SPI **/
-	SPDR = 0xFF;
+	
+
+
 	sei();
 
 	/** Analog Inputs**/
@@ -648,52 +688,6 @@ ISR(TIMER1_COMPA_vect){
    }
 	TIMSK |= (1<<OCIE1A);
 };
-
-/**************************************** SPI Interrupt *****************************************/
-ISR(SPI_STC_vect){
-	uint8_t data = SPDR;
-	if(PACKET_START == data){	/** data sent is 0x00 **/
-	 	SPDR = 0x00;
-    	runtime.transaction.state = PACKET_START;
-   	return;
-	}
-	else{
-		switch (runtime.transaction.state){
-			case PACKET_START:
-				runtime.transaction.opcode = data;
-				runtime.transaction.state = OPCODE_RECEIVED;
-				runtime.transaction.cbSize = spi_set_packet_length();
-				runtime.size = runtime.transaction.cbSize;
-	         /** allocate an adequate buffer **/
-	         SPDR = runtime.transaction.cbSize;     				/**return the length of the result buffer so master can allocate necessary buffers **/				
-				runtime.transaction.data = (uint8_t*)malloc(runtime.transaction.cbSize * sizeof(uint8_t));
-				runtime.transaction.dataptr = 0;
-				break;
-   		case OPCODE_RECEIVED:
-   			if(runtime.transaction.cbSize == 0){
-   				runtime.transaction.state = PACKET_STOP;
-   				return;
-   			}
-   			runtime.transaction.state = MORE_DATA;
-				return;
-	      case MORE_DATA:
-	         runtime.transaction.data[runtime.transaction.dataptr++] = data;
-	         runtime.dataptr = runtime.transaction.dataptr;
-	         if(runtime.transaction.dataptr == runtime.transaction.cbSize - 2) {
-	         	runtime.transaction.state = PACKET_STOP;
-				}
-				break;
-			case PACKET_STOP:
-				runtime.transaction.data[runtime.transaction.cbSize - 1] = data;
-				runtime.transaction.state = PACKET_START;
-				spi_process_instruction();
-				free(runtime.transaction.data);
-				break;
-				
-		}
-	}
-};
-
 
 
 
