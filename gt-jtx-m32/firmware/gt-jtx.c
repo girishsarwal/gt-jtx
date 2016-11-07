@@ -10,6 +10,10 @@
 #define F_CPU 1000000UL
 #endif
 
+
+#define USART_BAUDRATE 9600
+#define BAUD_PRESCALE (((F_CPU / (USART_BAUDRATE * 16UL))) - 1)
+
 #define DEBUG
 
 #include <avr/io.h>
@@ -165,50 +169,7 @@ typedef struct {
 	uint8_t cbSize;						/** size of this model **/
 } MODEL, *PMODEL;
 				
-/*** USART COMM PROTOCOL **
 
---------------------------------------------------
-								WRITE		
-      MASTER 								SLAVE							
-B0. 	FRM					->		
-								<-				ACK
-B1. 	[OPCODE]				->
-								<-				HIBYTE(N)
-B2.	[ADDRESS]			->				
-								<-				ACK
-B2.	[ARG]					->		
-								<-				LOBYTE(N)
-					
-B3.	WRITE BYTES ON TX			ACCUMULATE LEN BYTES		
-|
-|
-|
-BN.	WRITE BYTES ON TX			ACCUMULATE LEN BYTES
-
-BN+1.	CHECKSUM				->
-								<-				CHECKSUM
-
-
-								READ		
-      MASTER 								SLAVE							
-B0. 	FRM					->		
-								<-				FRM
-B1. 	[OPCODE]				->
-								<-				HIBYTE(N)
-B2.	[ARG]					->		
-								<-				LOBYTE(N)
-					
-B3.	READ BYTES ON RX			WRITE LEN BYTES
-|
-|
-|
-BN.	READ BYTES ON RX			WRITE LEN BYTES
-
-BN+1.	CHECKSUM				->
-								<-				CHECKSUM
-	
-
-**/
 
 
 enum USART_COMM_STATE {
@@ -220,7 +181,10 @@ enum USART_COMM_STATE {
 
 enum USART_FRAME_STATE {
 	FRAME,
+	ACK,
+	
 	OPCODE,
+	ADDRESS,
 	ARG,
 	DATA,
 	CHECKSUM,
@@ -348,7 +312,7 @@ void calibration_read_to_eeprom(void);
 
 
 /***************************************** Interrupt Declarations *****************************************/
-ISR(SPI_STC_vect);     	/**SPI byte received **/
+ISR(USART_RXC_vect);		/** USART Byte received **/
 ISR(TIMER1_COMPA_vect); /**PPM time elapsed **/
 
 
@@ -507,6 +471,15 @@ void setup_hardware(){
 	DDRB = (1<<PB6);	/**Setup MISO as output */
 	
 
+	/** setup USART for communication **/
+	
+	UCSRB = (1 << RXEN) | (1 << TXEN);   // Turn on the transmission and reception circuitry
+   UCSRC = (1 << URSEL) | (1 << UCSZ0) | (1 << UCSZ1); // Use 8-bit character sizes
+
+   UBRRH = (BAUD_PRESCALE >> 8); // Load upper 8-bits of the baud rate value into the high byte of the UBRR register
+   UBRRL = BAUD_PRESCALE; // Load lower 8-bits of the baud rate value into the low byte of the UBRR register
+
+   UCSRB |= (1 << RXCIE); // Enable the USART Recieve Complete interrupt (USART_RXC)/
 
 	sei();
 
@@ -687,6 +660,81 @@ ISR(TIMER1_COMPA_vect){
 		//OCR1A = micros_to_ticks(runtime.output.ppm[SYNC]);
    }
 	TIMSK |= (1<<OCIE1A);
+};
+
+
+
+/*** USART COMM PROTOCOL **
+
+--------------------------------------------------
+								WRITE		
+      MASTER 								SLAVE							
+B0. 	FRM					->		
+								<-				FRM
+B1.	[ADDRESS]			->				
+								<-				ACK
+B2. 	[OPCODE]				->
+								<-				HIBYTE(N)
+B3.	[ARG]					->		
+								<-				LOBYTE(N)
+					
+B4.	WRITE BYTES ON TX			ACCUMULATE LEN BYTES		
+|
+|
+|
+BN.	WRITE BYTES ON TX			ACCUMULATE LEN BYTES
+
+BN+1.	CHECKSUM				->
+								<-				CHECKSUM
+
+
+								READ		
+      MASTER 								SLAVE							
+B0. 	FRM					->		
+								<-				FRM
+B1.	[ADDRESS]			->				
+								<-				ACK								
+B2. 	[OPCODE]				->
+								<-				HIBYTE(N)
+B3.	[ARG]					->		
+								<-				LOBYTE(N)
+					
+B4.	READ BYTES ON RX			WRITE LEN BYTES
+|
+|
+|
+BN.	READ BYTES ON RX			WRITE LEN BYTES
+
+BN+1.	CHECKSUM				->
+								<-				CHECKSUM
+	
+
+**/
+ISR(USART_RXC_vect) {
+	char receivedByte;
+	receivedByte = UDR;
+
+	switch(receivedByte) {
+		case FRAME:
+			UDR = FRAME;
+			break;
+		case ADDRESS:
+			//calculate the length of the data
+			UDR = ACK;
+			break;
+		case OPCODE:
+			break;
+		case ARG:
+			//decipher the data that needs to be sent back
+			break;
+		case DATA:
+			/** this is where the framestate must be enumerated for bit stuffing **/
+			break;
+		case CHECKSUM:
+			/** calculate the check sum and send back **/
+			
+			break;
+	}
 };
 
 
