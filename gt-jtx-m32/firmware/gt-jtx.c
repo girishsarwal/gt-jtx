@@ -582,38 +582,43 @@ void memset16(uint16_t* a, uint16_t value, uint8_t size){
 	};
 };
 
-/*****************************************  spi_process_command ****************************************
-	* processess the SPI command that was sent from master
+
+/*****************************************  usart set payload length ****************************************
+	* determines the data payload length for a command
 **/
-void spi_process_instruction(void){
+void usart_set_payload_length(void){
+	free(runtime.transaction.data);
  	switch (runtime.transaction.opcode) {
-   }
+
+	case NOP:
+	case RESET:
+		runtime.transaction.cbSize = 0;
+		break;
+		
+   case SETTUP:
+   case GETTUP:
+   case SETTDN:
+	case GETTDN:
+	case SETREV:
+	case GETREV:
+	case SCUP:
+	case GCUP:
+	case SCDN:
+	case GCDN:
+	case SPPMLEN:
+	case GPPMLEN:
+	case SPPMICL:
+	case GPPMICL:
+	case SSTIM:
+	case GSTIM:
+	case GCV:
+		runtime.transaction.cbSize = 0;
+		break;
+	}
+	/** allocate the buffer **/
+	runtime.transaction.data = (char*) malloc(runtime.transaction.cbSize * sizeof(char));
 };
 
-
-/*****************************************  spi_set packet length ****************************************
-	* sets the length of the return packet to the master, so we know what data to be pushed
-**/
-
-uint8_t spi_set_packet_length(){
- 	switch (runtime.transaction.opcode)
-	{
-		case NOP:
-		case RESET:
-			return 0;
-		case SETTUP:
-		case SETTDN:
-	   case SETREV:
-	   case SCUP:
-		case SCDN:
-		case SPPMLEN:
-		case SPPMICL:
-		case SSTIM:
-			return 4;
-     	default:
-     		return 0;
-   }
-}
 
 void runtime_new (uint8_t debug) {
 	/** any error in this function would mean reporting back to client and shutting down the micro
@@ -664,6 +669,8 @@ ISR(TIMER1_COMPA_vect){
 
 
 
+
+/***************************************** USART Interrupt ********************************1*********/
 /*** USART COMM PROTOCOL **
 
 --------------------------------------------------
@@ -719,13 +726,15 @@ ISR(USART_RXC_vect) {
 			UDR = FRAME;
 			break;
 		case ADDRESS:
-			//calculate the length of the data
 			UDR = ACK;
 			break;
 		case OPCODE:
-			break;
+			runtime.transaction.opcode = UDR;
+			usart_set_payload_length();
+			UDR = LOBYTE(runtime.transaction.cbSize);
+			break;		
 		case ARG:
-			//decipher the data that needs to be sent back
+			UDR = HIBYTE(runtime.transaction.cbSize);			
 			break;
 		case DATA:
 			/** this is where the framestate must be enumerated for bit stuffing **/

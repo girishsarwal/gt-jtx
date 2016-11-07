@@ -33,9 +33,13 @@ K6 PC6 VSS
 K7 PC7 VSS
 
 
+;COM Xchanger port for simulation
+;XCOM10  _comxch(9600 8 1 0 1) tx0 rx0
+
 .PLOT v(PD5)	;PD5 is PPM
 .PLOT v(PD0)	;PD0 is RXD
 .PLOT v(PD1)	;PD1 is TXD
+
 
 
 
