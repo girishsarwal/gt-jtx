@@ -1,4 +1,4 @@
-// ***********************************************************
+	    		// ***********************************************************
 // Project:
 // Author:
 // Module description:
@@ -49,15 +49,10 @@ int main(void) {
    spiExchange(0xFF);
    while(1) {            							 // Infinite loop; define here the
 		retex = spiExchange(SPPMLEN);					/**GCV**/
-		retex = spiExchange(0x46);		         /**fourth channel **/
-
-		retex = spiExchange(0x50);					/**dont care**/
-		channelValue |= retex << 8;				/**make hibyte **/
-		retex = spiExchange(NOP);
-		channelValue |= retex;						/**make lobyte**/
 		m = 0 ;
    }
 };
+
 
 
 
