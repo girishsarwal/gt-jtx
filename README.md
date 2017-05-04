@@ -40,5 +40,11 @@ As of now the microcontroller (ATMEGA 32) generates a PPM stream based on the in
 m32 uses a separate unit for configuration and management of the joystick The separate program is Artrix and is available here (coming soon)
 
 
+
+# Arduino 2560 Version
+
+The Arduino 2560 version is a quick build version based on NextSteps RC DIY 2560 design with OpenTx as the firmware. This is not a from the ground-up design, only a hardware motherboard has been added to the original DIY 2560 design for quickly building a super radio on a budget!
+
+
 # Disclaimer
 I take no responsibility or warranty for any damage to you or your equipment, that may arise out of or is a consequence of using or reproducing any parts or features of the gt-jtx software/hardware system. Everything you do is completely at your own risk and expense.
