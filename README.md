@@ -14,6 +14,7 @@ There are three variants of the gt-jtx in order of ease of development
 - ATMEGA 8 - V1.0 available - Custom firmware
 - ATMEGA 32 - Work under progress
 
+See the wiki for more details
 
 # Disclaimer
 I take no responsibility or warranty for any damage to you or your equipment, that may arise out of or is a consequence of using or reproducing any parts or features of the gt-jtx software/hardware system. Everything you do is completely at your own risk and expense.
