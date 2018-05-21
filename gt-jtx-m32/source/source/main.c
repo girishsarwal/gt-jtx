@@ -18,38 +18,57 @@
 #include <avr/interrupt.h>
 #include <math.h>
 
-#define INP1		0    //Mapped to PA7
-#define INP2		1    //Mapped to PA6
-#define INP3		2    //Mapped to PA5
-#define INP4		3    //Mapped to PA4
-#define INP5 		4    //Mapped to PA3
-#define INP6		5    //Mapped to PA2
-#define INP7		6    //Mapped to PA1
-#define INP8		7    //Mapped to PA0
+/** Analog inputs are 0-7 on Port A**/
+#define PORT_ANALOG	PORTA
+#define DDR_ANALOG	DDRA
+#define PIN_ANALOG	PINA
+#define AI0		0    //Mapped to PA0
+#define AI1		1    //Mapped to PA1
+#define AI2		2    //Mapped to PA2
+#define AI3		3    //Mapped to PA3
+#define AI4 	4    //Mapped to PA4
+#define AI5		5    //Mapped to PA5
+#define AI6		6    //Mapped to PA6
+#define AI7		7    //Mapped to PA7
 
-#define MAX_ANALOG_INPUTS 8
 
-#define INP9		8     //Mapped to PD6
-#define INP10		9     //Mapped to PD3
-#define INP11		10    //Mapped to PD2
-#define INP12		11    //Mapped to PB4
-#define INP13		12    //Mapped to PB3
-#define INP14		13    //Mapped to PB2
-#define INP15		14    //Mapped to PB1
-#define INP16		15     //Mapped to PB0
+#define NUM_ANALOG_INPUTS 8
 
-#define MAX_DIGITAL_INPUTS 8
+#define PORT_DIGITAL	PORTB
+#define DDR_DIGITAL		DDRB
+#define PIN_DIGITAL		PINB
 
-#define PIN0		0
-#define PIN1		1
-#define PIN2		2
-#define PIN3		3
-#define PIN4		4
-#define PIN5		5
-#define PIN6		6
-#define PIN7		7
+#define DI0		0    //Mapped to PB0
+#define DI1		1    //Mapped to PB1
+#define DI2		2    //Mapped to PB2
+#define DI3		3    //Mapped to PB3
+#define DI4 	4    //Mapped to PB4
+#define DI5		5    //Mapped to PB5
+#define DI6		6    //Mapped to PB6
+#define DI7		7    //Mapped to PB7
 
-#define NUM_PHYSICAL_INPUTS (MAX_ANALOG_INPUTS + MAX_DIGITAL_INPUTS)
+#define NUM_DIGITAL_INPUTS 8
+
+#define NUM_PHYSICAL_INPUTS (NUM_ANALOG_INPUTS + NUM_DIGITAL_INPUTS)
+
+#define	INP0 	AI0
+#define INP1	AI1
+#define INP2	AI2
+#define INP3	AI3
+#define INP4	AI4
+#define INP5	AI5
+#define INP6	AI6
+#define INP7	AI7
+
+#define INP8	NUM_ANALOG_INPUTS + DI0
+#define INP9	NUM_ANALOG_INPUTS + DI1
+#define INP10	NUM_ANALOG_INPUTS + DI2
+#define INP11	NUM_ANALOG_INPUTS + DI3
+#define INP12	NUM_ANALOG_INPUTS + DI4
+#define INP13	NUM_ANALOG_INPUTS + DI5
+#define INP14	NUM_ANALOG_INPUTS + DI6
+#define INP15	NUM_ANALOG_INPUTS + DI7
+
 
 #define VINP0		16
 #define VINP1		17
@@ -60,7 +79,7 @@
 #define VINP6		22
 #define VINP7		23
 
-#define MAX_VIRTUAL_INPUTS 8
+#define NUM_VIRTUAL_INPUTS 8
 
 #define CH1		0		//Mapped to A
 #define CH2		1		//Mapped to E
@@ -71,15 +90,12 @@
 #define CH7		6		//Mapped to 7
 #define CH8		7		//Mapped to 8
 
-#define NUM_INPUTS (MAX_ANALOG_INPUTS + MAX_DIGITAL_INPUTS + MAX_VIRTUAL_INPUTS)
+#define NUM_INPUTS (NUM_ANALOG_INPUTS + NUM_DIGITAL_INPUTS + NUM_VIRTUAL_INPUTS)
 
-#define NUM_OUTPUTS	8
-#define SYNC NUM_OUTPUTS
-#define NUM_OUTPUTS_INCLUDING_SYNC	(NUM_OUTPUTS + 1)
-
-#define TRIM_UPPER_END 200
-#define TRIM_LOWER_END 0
-#define TRIM_CENTER 100
+/** Trim ports **/
+#define PORT_TRIM		PORTC
+#define DDR_TRIM		DDRC
+#define PIN_TRIM		PINC
 
 #define SIG_TRIM_CH1_PLUS 		0
 #define SIG_TRIM_CH1_MINUS 		1
@@ -90,39 +106,31 @@
 #define SIG_TRIM_CH4_PLUS 		6
 #define SIG_TRIM_CH4_MINUS 		7
 
-#define PORT_ANALOG	PORTA
-#define DDR_ANALOG	DDRA
-#define PIN_ANALOG	PINA
+#define TRIM_UPPER_END 200
+#define TRIM_LOWER_END 0
+#define TRIM_CENTER 100
 
-#define PORT_TRIM		PORTC
-#define DDR_TRIM		DDRC
-#define PIN_TRIM		PINC
+
+/** Output Port Mappings **/
+
+#define NUM_OUTPUTS	8
+#define SYNC NUM_OUTPUTS
+#define NUM_OUTPUTS_INCLUDING_SYNC	(NUM_OUTPUTS + 1)
 
 #define PORT_PPM		PORTD
 #define DDR_PPM		DDRD
 #define PIN_PPM		PIND
 
-#define PORT_MENU		PORTD
-#define DDR_MENU		DDRD
-#define PIN_MENU		PIND
-
-#define PORT_SPEAK	PORTD
+#define PORT_SPEAK		PORTD
 #define DDR_SPEAK		DDRD
 
-
 #define SIG_PPM		5
-#define SIG_SPEAK	6
-#define SIG_MENU_KEY 7
-
+#define SIG_SPEAK	4
 
 #define HIBYTE(x) (x>>8)
 #define LOBYTE(x) (x & 0xFF)
 #define HIWORD(x) (x>>4)
 #define LOWORD(x) (x & 0xF)
-
-
-#define ERROR_FACTORY		1
-
 
 
 /** radio settings **/
@@ -133,23 +141,25 @@ typedef struct {
 	uint16_t inter_channel_width_us;
 	uint16_t frame_width_us;
 	uint8_t num_hw_input;
-	uint16_t upper_calibration[MAX_ANALOG_INPUTS];
-	uint16_t lower_calibration[MAX_ANALOG_INPUTS];
+	uint16_t upper_calibration[NUM_ANALOG_INPUTS];
+	uint16_t lower_calibration[NUM_ANALOG_INPUTS];
 } SETTINGS, *PSETTINGS;
 
 /** mix **/
+/** everything is a mix, we use the nodegraph editor to build these
+ * dr - dual rates,
+ * reversal - reverse the servo direction
+ * weight - the final weight of the input
+ * expo - expnential,
+ * offset - channel value will be offset by this
+ * delay - channel value will be delayed by this amount before the command executes
+ * blip - channel will hesitate progress defined by the blip, will use a lerp to interpolate
+ *
+ */
 typedef struct {
 	uint8_t source;			/** source that transform the value, index into the input_hw_controls array **/
 	uint8_t target;			/** target that will be changed, values will be first read and then modified based on mplex and rev
 										 , always an index in the output_ppm array **/
-	uint8_t wt_low;
-	uint8_t wt_high;
-
-	uint8_t expo_low;
-	uint8_t expo_high;
-
-	uint8_t rev_mplex;		/** 1b for rev 3b for mplex = add/mult/replace/invert **/
-	uint8_t offset;			/** a final offset trim that will be applied **/
 } MIX, *PMIX;
 
 /** model **/
@@ -160,7 +170,7 @@ typedef struct {
 typedef struct {
 	uint8_t uuid[4];					/** 4 bytes of uuid **/
 	MIX mixes[MAX_MIXES];				/** array of mixes **/
-	uint8_t trims[MAX_ANALOG_INPUTS];	/** array of trims **/
+	uint8_t trims[NUM_ANALOG_INPUTS];	/** array of trims **/
 	uint8_t cbSize;						/** size of this model **/
 } MODEL, *PMODEL;
 
@@ -251,8 +261,8 @@ void process_key_inputs(void);
 
 void reset(void);
 void setup_hardware(void);
-void read_ad_channel_value(uint8_t);
-void read_switch(uint8_t ch, uint8_t port, uint8_t pin);
+void read_analog_input(uint8_t);
+void read_digital_input(uint8_t ch, uint8_t pin);
 void calculate_signal_params(void);
 
 void increment_trim(uint8_t channel);
@@ -302,29 +312,29 @@ int main(void){
 
 	while(1){
 		/** read analog inputs **/
-		read_ad_channel_value(INP1);
-		read_ad_channel_value(INP2);
-		read_ad_channel_value(INP3);
-		read_ad_channel_value(INP4);
-		read_ad_channel_value(INP5);
-		read_ad_channel_value(INP6);
-		read_ad_channel_value(INP7);
-		read_ad_channel_value(INP8);
+		read_analog_input(AI0);
+		read_analog_input(AI1);
+		read_analog_input(AI2);
+		read_analog_input(AI3);
+		read_analog_input(AI4);
+		read_analog_input(AI5);
+		read_analog_input(AI6);
+		read_analog_input(AI7);
 
 		/** read digital inputs **/
-		read_switch(INP9, PORTD, PIN4);
-		read_switch(INP10, PORTD, PIN6);
-		read_switch(INP11, PORTD, PIN7);
-		read_switch(INP12, PORTB, PIN0);
-		read_switch(INP13, PORTB, PIN1);
-		read_switch(INP14, PORTB, PIN2);
-		read_switch(INP15, PORTB, PIN3);
-		read_switch(INP16, PORTB, PIN4);
+		read_digital_input(INP8, DI0);
+		read_digital_input(INP9, DI1);
+		read_digital_input(INP10, DI2);
+		read_digital_input(INP11, DI3);
+		read_digital_input(INP12, DI4);
+		read_digital_input(INP13, DI5);
+		read_digital_input(INP14, DI6);
+		read_digital_input(INP15, DI7);
 
 		/** apply the mixes **/
 		uint8_t idx_mixes = -1;
 		while(++idx_mixes < MAX_MIXES){
-				mix_apply_transform(&(runtime.model.mixes[idx_mixes]));
+			mix_apply_transform(&(runtime.model.mixes[idx_mixes]));
 		};
 	}
 };
@@ -389,7 +399,7 @@ void model_save_trim(uint8_t channel) {
 ** the next 8 channels can only have digital values.
 ** analog or digital depends on whether one puts a POT ot a SPDT switch on that channel
 **/
-void read_ad_channel_value(uint8_t ch){
+void read_analog_input(uint8_t ch){
 	uint16_t value = read_analog(ch);
 
 	float calibratedChannelRange = runtime.settings.upper_calibration[ch] - runtime.settings.lower_calibration[ch];
@@ -399,14 +409,16 @@ void read_ad_channel_value(uint8_t ch){
 }
 
 /**************************************** read_switch *****************************
-** This method reads up the digital value of a channel (8-15) to the switches variable
-** on these inputs, only a SPDT will work
+** This method reads up the digital value of a digital input (D0-D7) into the
+** correct hardware channels. These inputs can only accept a digital switch
+**
+** uint8_t ch - the channel number in the inputs array
+** uint8_t - the signal which will be read
 **/
-void read_switch(uint8_t ch, uint8_t port, uint8_t pin){
+void read_digital_input(uint8_t ch, uint8_t pin){
 
-	volatile uint8_t value = get_key_pressed(port, pin);
+	volatile uint8_t value = get_key_pressed(PORT_DIGITAL, pin);
 	//volatile uint8_t value = (get_key_pressed(port, pin) ^ ((reverse & mask) == mask));  /** reverse is not a mixes feature. program it there **/
-
 	runtime.input.hw_controls[ch] = runtime.settings.min_signal_width_us + (value * (float)runtime.signal_traversal_us);
 }
 
@@ -437,9 +449,6 @@ void setup_hardware(){
 	/** setup the SPI Slave **/
 	/** Port B has the MISO/MOSI pins. Setup MOSI as input **/
 	runtime.transaction.state = WAIT_OPCODE;
-	DDRB = (1<<PB6);	/**Setup MISO as output */
-	SPCR = (1<<SPE) | (1<<SPIE) | (1<<SPR0) | (1<<SPR1)| (1<<CPOL);	/** enable SPI **/
-	SPDR = 0xFF;
 	sei();
 
 	/** Analog Inputs**/
@@ -463,11 +472,11 @@ void setup_hardware(){
 
  	/**PORTC is LCD_DATA, let the lcd library take care of it **/
 
- 	/** PORTD has D:0-D:4 for LCD_CTRL, make D5 (PPM), D6 (SPEAKER), D7 (MENU) as output pins **/
- 	DDR_MENU &= ~(1 << SIG_MENU_KEY);					/** D:7 is MENU KEY = 0**/
- 	PORT_MENU |= (1 << SIG_MENU_KEY);
-  	DDR_SPEAK |= (1 << SIG_SPEAK);						/** D:6 is SPEAKER = 1**/
- 	DDR_PPM |= (1 << SIG_PPM);								/** D:5 is PPM = 1**/
+// 	/** PORTD has D:0-D:4 for LCD_CTRL, make D5 (PPM), D6 (SPEAKER), D7 (MENU) as output pins **/
+// 	DDR_MENU &= ~(1 << SIG_MENU_KEY);					/** D:7 is MENU KEY = 0**/
+// 	PORT_MENU |= (1 << SIG_MENU_KEY);
+//  	DDR_SPEAK |= (1 << SIG_SPEAK);						/** D:6 is SPEAKER = 1**/
+// 	DDR_PPM |= (1 << SIG_PPM);								/** D:5 is PPM = 1**/
 
 
 	TCNT1 = 0;
@@ -630,8 +639,8 @@ void runtime_new (uint8_t debug) {
 		runtime.settings.inter_channel_width_us = 300;
 		runtime.settings.frame_width_us = 22500;
 		runtime.settings.num_hw_input = 16;
-		memset16(&runtime.settings.upper_calibration, 0, MAX_ANALOG_INPUTS);
-		memset16(&runtime.settings.lower_calibration, 1024, MAX_ANALOG_INPUTS);
+		memset16(&runtime.settings.upper_calibration, 0, NUM_ANALOG_INPUTS);
+		memset16(&runtime.settings.lower_calibration, 1024, NUM_ANALOG_INPUTS);
 		/** create a model for testing **/
 		eeprom_write_block((uint8_t*)0, &runtime.settings, sizeof(SETTINGS));
 
