@@ -2,7 +2,9 @@
  * common.h
  *
  *  Created on: 22-May-2018
- *      Author: girishsarwal
+ *      Author: Girish Sarwal
+ *      Email:  g.sarwal@gmail.com
+ *      	 , 	girish.sarwal@gluedtomatoes.com
  */
 
 #ifndef _COMMON_H_
@@ -23,12 +25,11 @@
 #include <avr/interrupt.h>
 #include <math.h>
 
-#include "command.h"
-
 /** Analog inputs are 0-7 on Port A**/
 #define PORT_ANALOG	PORTA
 #define DDR_ANALOG	DDRA
 #define PIN_ANALOG	PINA
+
 #define AI0		0    //Mapped to PA0
 #define AI1		1    //Mapped to PA1
 #define AI2		2    //Mapped to PA2
@@ -45,6 +46,7 @@
 #define DDR_DIGITAL		DDRB
 #define PIN_DIGITAL		PINB
 
+/** Digital inputs are 0-7 on Port B **/
 #define DI0		0    //Mapped to PB0
 #define DI1		1    //Mapped to PB1
 #define DI2		2    //Mapped to PB2
@@ -76,6 +78,7 @@
 #define INP14	NUM_ANALOG_INPUTS + DI6
 #define INP15	NUM_ANALOG_INPUTS + DI7
 
+/** Digital inputs are represented by index following the first 16 inputs**/
 
 #define VINP0		16
 #define VINP1		17
@@ -97,6 +100,7 @@
 #define CH7		6		//Mapped to 7
 #define CH8		7		//Mapped to 8
 
+/** total inputs are the sum of all **/
 #define NUM_INPUTS (NUM_ANALOG_INPUTS + NUM_DIGITAL_INPUTS + NUM_VIRTUAL_INPUTS)
 
 /** Trim ports **/
@@ -117,27 +121,29 @@
 #define TRIM_LOWER_END 0
 #define TRIM_CENTER 100
 
-
 /** Output Port Mappings **/
 
 #define NUM_OUTPUTS	8
 #define SYNC NUM_OUTPUTS
 #define NUM_OUTPUTS_INCLUDING_SYNC	(NUM_OUTPUTS + 1)
 
+/** PPM is output on Port D **/
 #define PORT_PPM		PORTD
 #define DDR_PPM		DDRD
 #define PIN_PPM		PIND
 
+/** Speaker for voice **/
 #define PORT_SPEAK		PORTD
 #define DDR_SPEAK		DDRD
 
 #define SIG_PPM		5
 #define SIG_SPEAK	4
 
-#define HIBYTE(x) (x>>8)
+#define HIBYTE(x) (x >> 8)
 #define LOBYTE(x) (x & 0xFF)
-#define HIWORD(x) (x>>4)
-#define LOWORD(x) (x & 0xF)
+
+#define HIWORD(x) (x >> 4)
+#define LOWORD(x) (x & 0xF0)
 
 #define FRAME_START 0x7E
 #define FRAME_END 0x7E
@@ -146,8 +152,24 @@
 
 #define US_TO_TICKS(x) (x * ((F_CPU/1000)/1000))
 
-
 void memset16(uint16_t* a, uint16_t value, uint8_t size);
+
+#define MAX_BUFFER_SIZE 128
+enum BUFFER_STATUS {
+	BUFFER_OK,
+	BUFFER_EMPTY,
+	BUFFER_FULL,
+};
+
+
+#define DEFAULT_SETUP_STATE	252
+#define DEFAULT_MIN_SIGNAL_WIDTH 700
+#define DEFAULT_MAX_SIGNAL_WIDTH 1700
+#define DEFAULT_INTER_CHANNEL_WIDTH 300
+#define DEFAULT_FRAME_WIDTH 22500
+#define DEFAULT_UPPER_CALIBRATION 0
+#define DEFAULT_LOWER_CALIBRATION 1024
+
 
 
 
